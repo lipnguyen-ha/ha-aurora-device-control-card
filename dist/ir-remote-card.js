@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -640,6 +640,32 @@ function resolveRemote(config) {
   return config.custom || REMOTES[config.remote];
 }
 
+// Moi nut co ma IR cua mot remote, theo thu tu trong pop-up
+function remoteButtons(def) {
+  const groups = def.groups || (def.buttons ? [{ buttons: def.buttons }] : []);
+  return groups.flatMap((group) => group.buttons).filter((btn) => btn.id);
+}
+
+// Ten hien thi cua mot nut trong form: nhan cua nut, hoac id viet lai cho de doc ("vol_up" -> "Vol up")
+function buttonTitle(btn) {
+  if (btn.label) return btn.label;
+  const text = btn.id.replace(/_/g, " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+// Cac che do dieu hoa co the dat lam nut nhanh, theo thu tu uu tien
+function climateModes(stateObj) {
+  const supported = (stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"];
+  return Object.keys(HVAC_ICONS).filter((mode) => supported.includes(mode));
+}
+
+// Nut nhanh mac dinh khi nguoi dung chua chon "quick"
+function defaultQuick(def, stateObj) {
+  if (def.kind === "climate") return climateModes(stateObj).slice(0, 3);
+  if (def.kind) return [];
+  return def.quick || [];
+}
+
 class IrRemoteCard extends HTMLElement {
   constructor() {
     super();
@@ -769,24 +795,38 @@ class IrRemoteCard extends HTMLElement {
     this.shadowRoot.replaceChildren(el("style", { text: CARD_CSS }), this._card);
   }
 
-  // Ba nut nhanh o hang duoi. Dieu hoa: lay tu hvac_modes cua entity.
+  // Ten ngan cua entity (khong kem ten thiet bi neu HA ho tro), dung khi nut khong dat "name"
+  _entityName(entityId) {
+    const stateObj = entityId && this._hass ? this._hass.states[entityId] : undefined;
+    if (!stateObj) return "";
+    if (this._hass.formatEntityName) {
+      try {
+        const name = this._hass.formatEntityName(stateObj, { type: "entity" });
+        if (name) return name;
+      } catch (err) {
+        // ban HA cu khong nhan tham so nay
+      }
+    }
+    return stateObj.attributes.friendly_name || "";
+  }
+
+  // Cac nut nhanh o hang duoi, lay tu tuy chon "quick" hoac mac dinh cua loai thiet bi.
   _quickButtons() {
+    const stateObj = this._stateObj;
+    const chosen = Array.isArray(this._config.quick) ? this._config.quick : defaultQuick(this._def, stateObj);
     if (this._isEntityKind) {
-      return (this._config.quick || []).map(normalizeControl).map((spec) => ({
+      return chosen.map(normalizeControl).map((spec) => ({
         id: spec.entity || spec.path,
-        label: spec.name,
+        label: spec.name || this._entityName(spec.entity),
         show_label: true,
         active: this._controlIsOn(spec),
         control: spec,
       }));
     }
     if (!this._isClimate) {
-      return (this._def.quick || []).map((id) => this._byId[id]).filter(Boolean);
+      return chosen.map((id) => this._byId[id]).filter(Boolean);
     }
-    const stateObj = this._stateObj;
-    const supported = (stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"];
-    const modes = Object.keys(HVAC_ICONS).filter((mode) => supported.includes(mode));
-    return modes.slice(0, 3).map((mode) => ({
+    return chosen.filter((mode) => HVAC_ICONS[mode]).map((mode) => ({
       id: mode,
       icon: HVAC_ICONS[mode],
       active: !!stateObj && stateObj.state === mode,
@@ -1238,6 +1278,24 @@ const EDITOR_LABELS = {
   icon: "Icon (để trống = icon mặc định)",
   color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
   availability_entity: "Entity báo mất kết nối (để trống = tự động)",
+  quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
+  quick_entities: "Nút nhanh trên card",
+  controls: "Nút trong pop-up",
+};
+
+// Cac truong cua mot nut gan voi entity, dung cho form cua vacuum / camera
+const CONTROL_FIELDS = {
+  entity: { label: "Entity (nút bấm, công tắc, đèn...)", selector: { entity: {} } },
+  name: { label: "Chữ hiển thị (để trống = tên entity)", selector: { text: {} } },
+  icon: { label: "Icon (để trống = icon của entity)", selector: { icon: {} } },
+};
+const POPUP_CONTROL_FIELDS = {
+  ...CONTROL_FIELDS,
+  name: { label: "Chữ hiển thị (để trống = chỉ icon)", selector: { text: {} } },
+  color: { label: "Màu khi bật (tên màu hoặc mã #hex)", selector: { text: {} } },
+  path: { label: "Chuyển tới trang (thay cho entity)", selector: { text: {} } },
+  confirm: { label: "Câu hỏi xác nhận trước khi bấm", selector: { text: {} } },
+  wide: { label: "Chiếm cả hàng", selector: { boolean: {} } },
 };
 
 class IrRemoteCardEditor extends HTMLElement {
@@ -1287,7 +1345,55 @@ class IrRemoteCardEditor extends HTMLElement {
       { name: "color", selector: { ui_color: {} } }
     );
     if (!def.kind) schema.push({ name: "availability_entity", selector: { entity: {} } });
+
+    // Nut nhanh: chon tu cac chuc nang cua loai thiet bi
+    if (def.kind === "entity") {
+      schema.push(
+        {
+          name: "quick",
+          label: "quick_entities",
+          selector: { object: { multiple: true, label_field: "name", description_field: "entity", fields: CONTROL_FIELDS } },
+        },
+        {
+          name: "controls",
+          selector: {
+            object: { multiple: true, label_field: "name", description_field: "entity", fields: POPUP_CONTROL_FIELDS },
+          },
+        }
+      );
+    } else {
+      const options =
+        def.kind === "climate"
+          ? climateModes(this._stateObj()).map((mode) => ({
+              value: mode,
+              label: this._hass.formatEntityState
+                ? this._hass.formatEntityState({ ...this._stateObj(), state: mode })
+                : mode,
+            }))
+          : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));
+      schema.push({
+        name: "quick",
+        selector: { select: { multiple: true, reorder: true, mode: "dropdown", options } },
+      });
+    }
     return schema;
+  }
+
+  _stateObj() {
+    return this._config.entity ? this._hass.states[this._config.entity] : undefined;
+  }
+
+  // Du lieu dua vao form: dien san nut nhanh mac dinh de nguoi dung thay va sua duoc
+  _formData() {
+    const def = resolveRemote(this._config) || {};
+    const data = { ...this._config };
+    if (def.kind === "entity") {
+      data.quick = (this._config.quick || []).map(normalizeControl);
+      data.controls = (this._config.controls || []).map(normalizeControl);
+    } else if (!Array.isArray(data.quick)) {
+      data.quick = defaultQuick(def, this._stateObj());
+    }
+    return data;
   }
 
   _update() {
@@ -1302,6 +1408,21 @@ class IrRemoteCardEditor extends HTMLElement {
         for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster"]) {
           if (config[key] === "" || config[key] == null) delete config[key];
         }
+        const def = resolveRemote(config) || {};
+        if (config.remote !== this._config.remote) {
+          // Doi loai thiet bi: nut nhanh cu khong con dung, quay ve mac dinh cua loai moi
+          delete config.quick;
+          if (def.kind !== "entity") delete config.controls;
+        } else if (def.kind === "entity") {
+          // Bo truong rong trong tung nut; khong con nut nao thi bo ca danh sach
+          for (const key of ["quick", "controls"]) {
+            const list = (config[key] || [])
+              .map((item) => Object.fromEntries(Object.entries(item || {}).filter(([, v]) => v !== "" && v != null && v !== false)))
+              .filter((item) => item.entity || item.path);
+            if (list.length) config[key] = list;
+            else delete config[key];
+          }
+        }
         this._config = config;
         this.dispatchEvent(
           new CustomEvent("config-changed", { bubbles: true, composed: true, detail: { config } })
@@ -1310,7 +1431,7 @@ class IrRemoteCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
-    this._form.data = this._config;
+    this._form.data = this._formData();
     this._form.schema = this._schema();
   }
 }
