@@ -160,9 +160,14 @@ entity: camera.tapo_hd_stream
 privacy_entity: switch.tapo_privacy    # góc phải hiện Online / Riêng tư / Offline
 quick:
   - { entity: switch.tapo_privacy, name: Riêng tư, icon: mdi:eye-off }
-controls:                              # lưới nút trong pop-up, dưới hình trực tiếp
+pad:                                   # vòng điều hướng trong pop-up, cho camera xoay được
+  up: button.tapo_move_up
+  down: button.tapo_move_down
+  left: button.tapo_move_left
+  right: button.tapo_move_right
+columns: 4                             # số cột của lưới nút bên dưới
+controls:                              # lưới nút trong pop-up
   - { entity: switch.tapo_privacy, name: RIÊNG TƯ, icon: mdi:eye-off, color: "#F2C879" }
-  - { entity: button.tapo_move_up, icon: mdi:chevron-up }
   - { entity: siren.tapo_siren, name: CÒI, icon: mdi:alarm-light, confirm: "Bật/tắt còi?" }
   - { entity: select.tapo_night_vision, name: ĐÊM, icon: mdi:weather-night }
   - { name: LỊCH SỬ, icon: mdi:history, path: /media-browser/browser, wide: true }
@@ -183,7 +188,7 @@ Mỗi nút trong `quick` và `controls` nhận:
 | `wide` | `true` để nút chiếm cả hàng |
 
 - **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Khi chưa khai báo `quick`, card có sẵn một nút dừng dọn và quay về dock. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
-- **Camera:** pop-up hiện hình trực tiếp có tiếng, kèm thanh điều khiển của trình phát. Đặt `audio: false` nếu muốn hình không tiếng. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `columns` đổi số cột của lưới nút, mặc định 3.
+- **Camera:** pop-up hiện hình trực tiếp có tiếng, kèm thanh điều khiển của trình phát. Đặt `audio: false` nếu muốn hình không tiếng. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `pad` khai báo bốn nút hướng (`up`, `down`, `left`, `right`, thêm `center` nếu muốn có nút ở tâm), hiện thành vòng tròn điều hướng giống remote TV. `columns` đổi số cột của lưới nút, mặc định 3.
 
 ## Action cần có trên bộ phát ESPHome
 

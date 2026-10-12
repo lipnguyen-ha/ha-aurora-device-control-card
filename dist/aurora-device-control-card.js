@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.4.1";
+const VERSION = "1.5.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -836,6 +836,23 @@ const POPUP_CSS = `
     font-weight: 600;
     letter-spacing: 0.5px;
   }
+  /* Vong dieu huong khong co cu chi keo (camera xoay): chi can khoang cach tren duoi */
+  .pad-static { padding: 16px 0 20px; }
+  .pad-static .pad { width: min(210px, 58vw); touch-action: auto; }
+  .pad .center {
+    position: absolute;
+    left: 31%;
+    top: 31%;
+    width: 38%;
+    height: 38%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--ir-accent, #90a4ae) 16%, transparent);
+    color: var(--ir-accent, #90a4ae);
+    --mdc-icon-size: 30px;
+  }
   /* Cac nut duoi vong dieu huong: can deu hai mep pop-up, cung be rong voi cac phan khac */
   .btn-row {
     display: flex;
@@ -1141,7 +1158,7 @@ class IrRemoteCard extends HTMLElement {
 
   // Co pop-up rieng hay khong; khong co thi bam card mo hop thoai more-info cua HA
   get _hasPopup() {
-    return !this._isEntityKind || !!this._def.live || this._controls.length > 0;
+    return !this._isEntityKind || !!this._def.live || this._controls.length > 0 || !!this._config.pad;
   }
 
   get _stateObj() {
@@ -1858,6 +1875,30 @@ class IrRemoteCard extends HTMLElement {
     return [this._embedCard({ type: "thermostat", entity: this._config.entity, features })];
   }
 
+  // Vong dieu huong cho loai theo entity (camera xoay): bon huong la bon nut khai bao trong "pad",
+  // tam la nut "center" neu co, khong thi chi la icon trang tri. Chi bam, khong co cu chi keo.
+  _buildControlPad(spec) {
+    const pad = el("div", { class: "pad" });
+    for (const id of ["up", "down", "left", "right"]) {
+      if (!spec[id]) continue;
+      const control = normalizeControl(spec[id]);
+      const node = el("button", { class: id, title: control.name || id }, [
+        icon(control.icon || `mdi:chevron-${id}`),
+      ]);
+      node.addEventListener("click", () => this._pressControl(control));
+      pad.appendChild(node);
+    }
+    if (spec.center) {
+      const control = normalizeControl(spec.center);
+      const node = el("button", { class: "ok", title: control.name || "center" }, [this._controlIcon(control)]);
+      node.addEventListener("click", () => this._pressControl(control));
+      pad.appendChild(node);
+    } else {
+      pad.appendChild(el("div", { class: "center" }, [icon(this._icon)]));
+    }
+    return el("div", { class: "pad-static" }, [pad]);
+  }
+
   // Noi dung pop-up cua vacuum / camera: hinh truc tiep (neu la camera) + luoi nut "controls"
   _buildEntityBody() {
     const body = [];
@@ -1873,6 +1914,8 @@ class IrRemoteCard extends HTMLElement {
         body.push(this._embedCamera());
       }
     }
+    const pad = this._config.pad;
+    if (pad && (pad.up || pad.down || pad.left || pad.right)) body.push(this._buildControlPad(pad));
     if (this._controls.length) {
       body.push(
         this._buildGrid({
@@ -2049,6 +2092,11 @@ const EDITOR_LABELS = {
   remote_entity: "Entity remote để gửi lệnh (để trống = tự tìm theo tên)",
   apps: "Ứng dụng hiện trong pop-up (bấm để mở)",
   controls: "Nút trong pop-up",
+  columns: "Số cột của lưới nút trong pop-up",
+  up: "Lên",
+  down: "Xuống",
+  left: "Trái",
+  right: "Phải",
 };
 
 // Cac truong cua mot nut gan voi entity, dung cho form cua vacuum / camera
@@ -2145,6 +2193,18 @@ class IrRemoteCardEditor extends HTMLElement {
       schema.push({ name: "badge_entity", selector: { entity: {} } }, { name: "badge_icon", selector: { icon: {} } });
     }
 
+    if (def.kind === "entity") {
+      // Bon nut huong cua vong dieu huong trong pop-up (vd. cac nut xoay cua camera)
+      schema.push(
+        {
+          name: "pad",
+          type: "expandable",
+          title: "Vòng điều hướng trong pop-up (bốn nút hướng)",
+          schema: ["up", "down", "left", "right"].map((name) => ({ name, selector: { entity: {} } })),
+        },
+        { name: "columns", selector: { number: { min: 2, max: 6, mode: "box" } } }
+      );
+    }
     schema.push({ name: "hide_quick", selector: { boolean: {} } });
     // Nut nhanh: chon tu cac chuc nang cua loai thiet bi (khong can khi da an hang nut)
     if (this._config.hide_quick) {
@@ -2234,6 +2294,13 @@ class IrRemoteCardEditor extends HTMLElement {
           if (!config.apps.length) delete config.apps;
         }
         if (!config.hide_quick) delete config.hide_quick;
+        if (config.pad) {
+          // Bo huong de trong; khong con huong nao thi bo ca "pad"
+          const pad = Object.fromEntries(Object.entries(config.pad).filter(([, v]) => v !== "" && v != null));
+          if (Object.keys(pad).length) config.pad = pad;
+          else delete config.pad;
+        }
+        if (config.columns == null || config.columns === "") delete config.columns;
         const before = deviceOf(this._config);
         const deviceChanged = config.device !== before.device;
         const models = (DEVICES[config.device] || {}).models;
