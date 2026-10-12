@@ -46,6 +46,7 @@ Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remot
 | `tv` | `samsung` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
 | `tv` | `lg` | TV LG | NEC | **Chưa thử trên TV thật** |
 | `tv` | `sony` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
+| `appletv` | Không có | Apple TV (entity media_player và remote) | Qua mạng, không dùng IR | Mới thêm |
 | `climate` | Không có | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
 | `vacuum` | Không có | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
 | `camera` | Không có | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
@@ -60,10 +61,10 @@ Cũng có thể viết YAML với các tùy chọn sau:
 
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
-| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `climate`, `vacuum`, `camera` |
+| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `appletv`, `climate`, `vacuum`, `camera` |
 | `model` | Với `fan`, `speaker`, `tv` | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
 | `blaster` | Với thiết bị hồng ngoại | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
-| `entity` | Với `climate`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
+| `entity` | Với `appletv`, `climate`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
 | `name` | Không | Tên hiển thị, mặc định lấy theo thiết bị |
 | `icon` | Không | Icon hiển thị, mặc định lấy theo thiết bị |
 | `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại một màu: quạt xanh ngọc, loa và robot tím nhạt, TV và camera xanh dương, điều hòa xanh da trời |
@@ -92,6 +93,26 @@ blaster: s06_ir
 entity: media_player.samsung_tv
 quick: [power, mute, vol_down, vol_up]
 ```
+
+### Apple TV
+
+Apple TV điều khiển qua mạng bằng tích hợp Apple TV của Home Assistant, không cần bộ phát IR:
+
+```yaml
+type: custom:aurora-device-control-card
+device: appletv
+entity: media_player.appletv
+apps: [Netflix, YouTube, Spotify]
+```
+
+- Bấm icon: bật hoặc cho ngủ.
+- Nút hàng dưới: mặc định là phát/dừng, quay lại, home. Chọn nút khác bằng `quick`.
+- Góc phải: nội dung đang phát hoặc ứng dụng đang mở.
+- Pop-up: cụm điều hướng, quay lại, nút TV, phát/dừng, tua 10 giây, âm lượng.
+- **Ô gõ chữ:** gõ tới đâu chữ hiện trên Apple TV tới đó, nhấn Enter để chọn. Ô này mờ đi khi Apple TV chưa mở chỗ nhập chữ (tìm kiếm, mật khẩu).
+- `apps`: các ứng dụng hiện thành nút trong pop-up, bấm để mở. Tên lấy theo danh sách nguồn của `media_player`.
+
+Card tự tìm entity remote và cảm biến bàn phím theo tên của `media_player` (`remote.<tên>`, `binary_sensor.<tên>_keyboard_focus`). Nếu tên khác, khai báo `remote_entity` và `keyboard_entity`.
 
 ### Điều hòa
 

@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.6";
+const VERSION = "1.1.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -266,6 +266,49 @@ const REMOTES = {
     }),
   },
 
+  // Apple TV: lenh di qua mang bang remote.send_command (khong dung IR), trang thai lay tu media_player.
+  // Pop-up co them o go chu (apple_tv.set_keyboard_text) va cac ung dung chon trong "apps".
+  appletv: {
+    kind: "media",
+    domain: "media_player",
+    transport: "remote",
+    name: "Apple TV",
+    icon: "mdi:apple",
+    color: "#8E9AAF",
+    button_height: 54,
+    off_states: ["off", "standby", "unavailable", "unknown"],
+    default_quick: ["play_pause", "menu", "home"],
+    keyboard: true,
+    groups: [
+      {
+        columns: 3,
+        buttons: [
+          { id: "power", icon: "mdi:power", color: "#e53935", power: true },
+          { spacer: true },
+          { id: "home", icon: "mdi:television", label: "TV", command: "home" },
+          { spacer: true },
+          { id: "up", icon: "mdi:arrow-up-bold", command: "up", highlight: true },
+          { spacer: true },
+          { id: "left", icon: "mdi:arrow-left-bold", command: "left", highlight: true },
+          { id: "select", icon: "mdi:circle-outline", label: "OK", command: "select", highlight: true },
+          { id: "right", icon: "mdi:arrow-right-bold", command: "right", highlight: true },
+          { id: "menu", icon: "mdi:arrow-u-left-top", label: "BACK", command: "menu" },
+          { id: "down", icon: "mdi:arrow-down-bold", command: "down", highlight: true },
+          { id: "play_pause", icon: "mdi:play-pause", command: "play_pause" },
+        ],
+      },
+      {
+        columns: 4,
+        buttons: [
+          { id: "skip_backward", icon: "mdi:rewind-10", command: "skip_backward" },
+          { id: "skip_forward", icon: "mdi:fast-forward-10", command: "skip_forward" },
+          { id: "volume_down", icon: "mdi:volume-minus", command: "volume_down" },
+          { id: "volume_up", icon: "mdi:volume-plus", command: "volume_up" },
+        ],
+      },
+    ],
+  },
+
   // Khong phai bo ma IR: dieu khien mot entity climate (vi du climate IR cua ESPHome)
   climate: {
     kind: "climate",
@@ -309,6 +352,7 @@ const DEVICES = {
   fan: { name: "Quạt", models: { hsv: "hsv_fan", toshiba: "toshiba_fan" } },
   speaker: { name: "Loa", models: { lg: "lg_soundbar" } },
   tv: { name: "TV", models: { samsung: "samsung_tv", lg: "lg_tv", sony: "sony_tv" } },
+  appletv: { name: "Apple TV", remote: "appletv" },
   climate: { name: "Điều hòa", remote: "climate" },
   vacuum: { name: "Robot hút bụi", remote: "vacuum" },
   camera: { name: "Camera", remote: "camera" },
@@ -442,6 +486,7 @@ const CARD_CSS = `
     font-weight: 500;
     white-space: nowrap;
   }
+  .badge .text { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
   .badge.show-text ha-icon.remote, .badge.show-icon .text { display: none; }
   /* Icon tuy chon dung truoc chu trang thai (badge_icon) */
   .badge ha-icon.extra { display: none; margin-right: 4px; --mdc-icon-size: 14px; }
@@ -610,6 +655,67 @@ const POPUP_CSS = `
     width: 100%;
     border-radius: 14px;
     overflow: hidden;
+  }
+  /* O go chu gui len thiet bi (Apple TV) */
+  .keyboard {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    margin-bottom: 8px;
+    padding: 0 6px 0 14px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 14px;
+    background: rgba(127, 127, 127, 0.16);
+    --mdc-icon-size: 20px;
+  }
+  .keyboard.inactive { opacity: 0.5; }
+  .keyboard input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: none;
+    color: var(--primary-text-color);
+    font-family: inherit;
+    font-size: 16px;
+  }
+  .keyboard input::placeholder { color: var(--secondary-text-color); font-size: 13px; }
+  .keyboard button {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border: none;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(127, 127, 127, 0.2);
+    color: var(--primary-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .apps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .apps button {
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 17px;
+    background: rgba(127, 127, 127, 0.16);
+    color: var(--primary-text-color);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .apps button.active {
+    background: color-mix(in srgb, var(--ir-accent) 24%, transparent);
+    border-color: color-mix(in srgb, var(--ir-accent) 70%, transparent);
   }
   .offline-box {
     height: 180px;
@@ -787,6 +893,7 @@ class IrRemoteCard extends HTMLElement {
     this._hass = hass;
     this._update();
     this._updateControls();
+    this._updateKeyboard();
     for (const card of this._embedded) {
       card.hass = hass;
       if (card.localName === "ha-camera-stream") card.stateObj = this._stateObj;
@@ -844,6 +951,7 @@ class IrRemoteCard extends HTMLElement {
     iconButton.addEventListener("click", (ev) => {
       ev.stopPropagation();
       if (this._isClimate) this._callEntity("toggle");
+      else if (this._def.transport === "remote") this._togglePower();
       else if (this._isEntityKind) this._openMain();
       else this._send(this._byId[this._def.power]);
     });
@@ -966,7 +1074,10 @@ class IrRemoteCard extends HTMLElement {
     const stateObj = this._stateObj;
     const onStates = this._def.on_states;
     const on =
-      !offline && !!stateObj && (onStates ? onStates.includes(stateObj.state) : !OFF_STATES.includes(stateObj.state));
+      !offline &&
+      !!stateObj &&
+      (onStates ? onStates.includes(stateObj.state) : !(this._def.off_states || OFF_STATES).includes(stateObj.state));
+    this._isOn = on;
     const live = !!this._def.live;
     this._card.classList.toggle("offline", offline && !live);
     this._card.classList.toggle("alert", offline && live);
@@ -992,6 +1103,9 @@ class IrRemoteCard extends HTMLElement {
         : `${badge.state} ${badge.attributes.unit_of_measurement || ""}`.trim();
     } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
       text = `${stateObj.attributes.temperature} °C`;
+    } else if (this._def.kind === "media" && on && stateObj) {
+      // Dang phat gi, hoac dang mo ung dung nao
+      text = stateObj.attributes.media_title || stateObj.attributes.app_name || "";
     }
     const badgeIcon = !offline && !live && text ? this._config.badge_icon || this._def.badge_icon : "";
     this._badge.querySelector(".extra").setAttribute("icon", badgeIcon || "");
@@ -1028,9 +1142,102 @@ class IrRemoteCard extends HTMLElement {
       .catch((err) => this._notifyError(err));
   }
 
+  // ----- Thiet bi dieu khien qua entity remote (Apple TV) -----
+  // Entity remote / cam bien ban phim: lay tu cau hinh, hoac suy ra tu ten cua media_player
+  _siblingEntity(option, domain, suffix = "") {
+    if (this._config[option]) return this._config[option];
+    const objectId = (this._config.entity || "").split(".")[1];
+    return objectId ? `${domain}.${objectId}${suffix}` : undefined;
+  }
+
+  // Bat / cho ngu qua media_player. Khong dung remote.turn_on/turn_off: voi Apple TV hai lenh do
+  // chi ket noi / ngat ket noi Home Assistant voi thiet bi, khong danh thuc hay cho ngu.
+  _togglePower() {
+    this._callEntity(this._isOn ? "turn_off" : "turn_on");
+  }
+
+  // Config entry cua thiet bi, can cho cac action ban phim cua Apple TV
+  _configEntryId() {
+    if (this._config.config_entry_id) return this._config.config_entry_id;
+    const entry = this._hass.entities && this._hass.entities[this._config.entity];
+    const device = entry && this._hass.devices && this._hass.devices[entry.device_id];
+    return device ? device.primary_config_entry || (device.config_entries || [])[0] : undefined;
+  }
+
+  _keyboardFocused() {
+    const sensor = this._hass.states[this._siblingEntity("keyboard_entity", "binary_sensor", "_keyboard_focus")];
+    return sensor ? sensor.state === "on" : true;
+  }
+
+  _sendText(text) {
+    const entryId = this._configEntryId();
+    if (!entryId) return this._notifyError("khong tim thay config entry cua thiet bi");
+    const call = text
+      ? this._hass.callService("apple_tv", "set_keyboard_text", { config_entry_id: entryId, text })
+      : this._hass.callService("apple_tv", "clear_keyboard_text", { config_entry_id: entryId });
+    call.catch((err) => this._notifyError(err));
+  }
+
+  // O go chu: go toi dau gui len thiet bi toi do. Enter = bam nut chon.
+  _buildKeyboard() {
+    const input = el("input", {
+      type: "text",
+      autocomplete: "off",
+      autocapitalize: "off",
+      autocorrect: "off",
+      spellcheck: "false",
+      enterkeyhint: "search",
+    });
+    let timer;
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => this._sendText(input.value), 200);
+    });
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter") return;
+      ev.preventDefault();
+      clearTimeout(timer);
+      this._sendText(input.value);
+      this._send(this._byId.select);
+    });
+    const clear = el("button", { title: "Clear" }, [icon("mdi:close")]);
+    clear.addEventListener("click", () => {
+      input.value = "";
+      this._sendText("");
+      input.focus();
+    });
+    const box = el("div", { class: "keyboard" }, [icon("mdi:keyboard-outline"), input, clear]);
+    this._keyboard = { box, input };
+    this._updateKeyboard();
+    return box;
+  }
+
+  _updateKeyboard() {
+    if (!this._keyboard || !this._hass) return;
+    const focused = this._keyboardFocused();
+    this._keyboard.box.classList.toggle("inactive", !focused);
+    this._keyboard.input.placeholder = focused
+      ? "Gõ để nhập trên thiết bị"
+      : "Thiết bị chưa mở ô nhập chữ";
+  }
+
+  // Cac ung dung chon trong "apps": bam de mo (media_player.select_source)
+  _buildApps() {
+    const stateObj = this._stateObj;
+    const current = stateObj && (stateObj.attributes.source || stateObj.attributes.app_name);
+    const row = el("div", { class: "apps" });
+    for (const app of this._config.apps || []) {
+      const node = el("button", { text: app, class: app === current ? "active" : "" });
+      node.addEventListener("click", () => this._callEntity("select_source", { source: app }));
+      row.appendChild(node);
+    }
+    return row;
+  }
+
   _press(btn) {
     if (!btn) return;
-    if (btn.control) this._pressControl(btn.control);
+    if (btn.power) this._togglePower();
+    else if (btn.control) this._pressControl(btn.control);
     else if (btn.service) this._callEntity(btn.service[0], btn.service[1]);
     else this._send(btn);
   }
@@ -1122,6 +1329,16 @@ class IrRemoteCard extends HTMLElement {
   _send(btn) {
     if (!btn || !this._hass || this._missing) return;
     const def = this._def;
+    if (def.transport === "remote") {
+      this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
+      this._hass
+        .callService("remote", "send_command", {
+          entity_id: this._siblingEntity("remote_entity", "remote"),
+          command: btn.command,
+        })
+        .catch((err) => this._notifyError(err));
+      return;
+    }
     const protocol = btn.protocol || def.protocol;
     // Giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
     const data =
@@ -1283,6 +1500,8 @@ class IrRemoteCard extends HTMLElement {
       : this._isEntityKind
         ? this._buildEntityBody()
         : this._groups.map((group) => this._buildGrid(group));
+    if (this._def.keyboard) body.unshift(this._buildKeyboard());
+    if ((this._config.apps || []).length) body.push(this._buildApps());
     this._updateControls();
     const sheet = el("div", { class: "sheet" }, [
       el("div", { class: "handle" }),
@@ -1390,6 +1609,7 @@ class IrRemoteCard extends HTMLElement {
     this._popup = null;
     this._embedded = [];
     this._controlNodes = [];
+    this._keyboard = null;
     this._childDialog = false;
     document.documentElement.style.overflow = this._prevOverflow || "";
     window.removeEventListener("popstate", this._onPopState);
@@ -1415,6 +1635,8 @@ const EDITOR_LABELS = {
   badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = mặc định của loại thiết bị)",
   quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
   quick_entities: "Nút nhanh trên card",
+  remote_entity: "Entity remote để gửi lệnh (để trống = tự tìm theo tên)",
+  apps: "Ứng dụng hiện trong pop-up (bấm để mở)",
   controls: "Nút trong pop-up",
 };
 
@@ -1496,6 +1718,14 @@ class IrRemoteCardEditor extends HTMLElement {
       { name: "color", selector: { ui_color: {} } }
     );
     if (!def.kind) schema.push({ name: "availability_entity", selector: { entity: {} } });
+    if (def.transport === "remote") {
+      const sources = (this._stateObj() && this._stateObj().attributes.source_list) || [];
+      for (const app of this._config.apps || []) if (!sources.includes(app)) sources.push(app);
+      schema.push(
+        { name: "remote_entity", selector: { entity: { domain: "remote" } } },
+        { name: "apps", selector: { select: { multiple: true, reorder: true, custom_value: true, mode: "dropdown", options: sources } } }
+      );
+    }
     // Camera dung o goc phai cho Online / Offline nen khong co tuy chon nay
     if (!def.live) {
       schema.push({ name: "badge_entity", selector: { entity: {} } }, { name: "badge_icon", selector: { icon: {} } });
@@ -1551,6 +1781,7 @@ class IrRemoteCardEditor extends HTMLElement {
     } else if (!Array.isArray(data.quick)) {
       data.quick = defaultQuick(def, this._stateObj());
     }
+    if (Array.isArray(data.apps) && !data.apps.length) delete data.apps;
     return data;
   }
 
@@ -1563,7 +1794,7 @@ class IrRemoteCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { ...ev.detail.value };
         // Bo cac o de trong de YAML gon va card dung gia tri mac dinh
-        for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster", "badge_entity", "badge_icon"]) {
+        for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster", "badge_entity", "badge_icon", "remote_entity"]) {
           if (config[key] === "" || config[key] == null) delete config[key];
         }
         const before = deviceOf(this._config);
@@ -1581,6 +1812,10 @@ class IrRemoteCardEditor extends HTMLElement {
           // Doi loai thiet bi hoac mau remote: nut nhanh cu khong con dung, quay ve mac dinh moi
           delete config.quick;
           if (def.kind !== "entity") delete config.controls;
+          if (def.transport !== "remote") {
+            delete config.apps;
+            delete config.remote_entity;
+          }
         } else if (def.kind === "entity") {
           // Bo truong rong trong tung nut; khong con nut nao thi bo ca danh sach
           for (const key of ["quick", "controls"]) {
