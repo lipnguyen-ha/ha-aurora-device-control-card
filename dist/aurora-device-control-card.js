@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -732,11 +732,17 @@ const POPUP_CSS = `
   .now-playing .sub { margin-top: 3px; font-size: 12px; color: var(--secondary-text-color); }
   /* Vong tron dieu huong: bon huong tren vanh, OK o tam. Vi tri dat bang top/left (khong dung
      transform) de hieu ung bam button:active khong lam lech nut. */
+  /* Vung nhan cu chi keo: rong het pop-up va tran ra tren duoi vong tron, de khong phai keo that trung */
+  .pad-zone {
+    margin: 0 -14px;
+    padding: 26px 0 30px;
+    touch-action: none;
+  }
   .pad {
     position: relative;
     width: min(240px, 66vw);
     aspect-ratio: 1;
-    margin: 14px auto 18px;
+    margin: 0 auto;
     border: 1px solid rgba(127, 127, 127, 0.22);
     border-radius: 50%;
     background: rgba(127, 127, 127, 0.16);
@@ -1421,9 +1427,12 @@ class IrRemoteCard extends HTMLElement {
     });
     pad.appendChild(ok);
 
-    // Chan su kien cham lan len sheet, de vuot xuong tren vong tron khong dong pop-up
-    pad.addEventListener("touchstart", (ev) => ev.stopPropagation(), { passive: true });
-    pad.addEventListener(
+    // Vung cu chi rong hon vong tron: keo o canh hoac sat ngoai vong tron van duoc tinh
+    const zone = el("div", { class: "pad-zone" }, [pad]);
+
+    // Chan su kien cham lan len sheet, de vuot xuong trong vung nay khong dong pop-up
+    zone.addEventListener("touchstart", (ev) => ev.stopPropagation(), { passive: true });
+    zone.addEventListener(
       "touchmove",
       (ev) => {
         ev.stopPropagation();
@@ -1431,7 +1440,7 @@ class IrRemoteCard extends HTMLElement {
       },
       { passive: false }
     );
-    pad.addEventListener("touchend", (ev) => ev.stopPropagation());
+    zone.addEventListener("touchend", (ev) => ev.stopPropagation());
 
     // Keo nhu ban cham: cu keo them STEP px thi gui them mot lenh huong, keo nguoc lai thi di nguoc lai.
     // Diem neo doi dung mot buoc moi lan (khong nhay ve vi tri ngon tay) de quang du duoc cong don.
@@ -1439,11 +1448,11 @@ class IrRemoteCard extends HTMLElement {
     const STEP = 36;
     let anchor = null;
     let moved = false;
-    pad.addEventListener("pointerdown", (ev) => {
+    zone.addEventListener("pointerdown", (ev) => {
       anchor = { x: ev.clientX, y: ev.clientY };
       moved = false;
     });
-    pad.addEventListener("pointermove", (ev) => {
+    zone.addEventListener("pointermove", (ev) => {
       if (!anchor) return;
       for (let i = 0; i < 4; i++) {
         const dx = ev.clientX - anchor.x;
@@ -1465,10 +1474,10 @@ class IrRemoteCard extends HTMLElement {
       if (moved) swipedAt = Date.now();
       anchor = null;
     };
-    pad.addEventListener("pointerup", release);
-    pad.addEventListener("pointercancel", release);
-    pad.addEventListener("pointerleave", release);
-    return pad;
+    zone.addEventListener("pointerup", release);
+    zone.addEventListener("pointercancel", release);
+    zone.addEventListener("pointerleave", release);
+    return zone;
   }
 
   // Mot hang nut tron lay tu cac nut cua remote
