@@ -72,6 +72,7 @@ Cũng có thể viết YAML với các tùy chọn sau:
 | `hide_quick` | Không | `true` để ẩn hàng nút nhanh. Card khi đó thấp bằng một tile của Home Assistant (56px), xếp cạnh tile đèn và công tắc cho đều. Bấm vào card vẫn mở pop-up đầy đủ |
 | `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, thiết bị hồng ngoại hiện icon remote |
 | `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:progress-check`. Điều hòa mặc định là `mdi:thermometer` |
+| `ir_gap` | Không | Khoảng cách tối thiểu giữa hai lệnh hồng ngoại liên tiếp, tính bằng mili giây, mặc định 220. Tăng lên nếu kéo trên vòng điều hướng mà thiết bị bỏ sót bước, giảm xuống nếu thiết bị nhận tốt và bạn muốn nhanh hơn |
 | `availability_entity` | Không | Entity dùng để biết bộ phát IR còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
 | `custom` | Không | Bộ mã hồng ngoại tự khai báo, thay cho `device` và `model` (xem bên dưới) |
 

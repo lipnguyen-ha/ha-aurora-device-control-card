@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -1748,9 +1748,18 @@ class IrRemoteCard extends HTMLElement {
     if (repeats !== undefined) data.repeats = repeats;
 
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
-    this._hass
-      .callService("esphome", `${this._config.blaster}_send_${protocol}`, data)
-      .catch((err) => this._notifyError(err));
+    // Cac lenh IR phai cach nhau mot khoang lang. Gui lien nhau thi thiet bi coi nhu dang giu mot phim
+    // va chi nhan lan dau (vd. keo tren vong dieu huong gui 6 lenh ma TV chi di 1-2 o).
+    // Lenh dau gui ngay; cac lenh sau xep hang, moi lenh cach lenh truoc "ir_gap" mili giay.
+    const gap = Number(this._config.ir_gap ?? 220);
+    const now = Date.now();
+    const at = Math.max(now, this._irNextAt || 0);
+    if (at - now > gap * 8) return; // hang cho qua dai (keo qua nhanh): bo bot de khong chay mai sau khi dung tay
+    this._irNextAt = at + gap;
+    const service = `${this._config.blaster}_send_${protocol}`;
+    const call = () => this._hass.callService("esphome", service, data).catch((err) => this._notifyError(err));
+    if (at === now) call();
+    else setTimeout(call, at - now);
   }
 
   _buildGrid(group) {
