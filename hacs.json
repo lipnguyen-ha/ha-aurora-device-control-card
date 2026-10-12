@@ -1,5 +1,5 @@
 {
-  "name": "IR Remote Card",
-  "filename": "ir-remote-card.js",
+  "name": "Aurora Device Control Card",
+  "filename": "aurora-device-control-card.js",
   "render_readme": true
 }

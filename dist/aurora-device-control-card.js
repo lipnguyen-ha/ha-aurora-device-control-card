@@ -1,21 +1,23 @@
 /*
- * IR Remote Card - card Lovelace cho thiet bi dieu khien bang hong ngoai.
+ * Aurora Device Control Card - card Lovelace dieu khien thiet bi theo mot kieu thong nhat.
  *
- * Remote IR (quat, loa, TV):
- *   type: custom:ir-remote-card
- *   remote: hsv_fan            # ten bo ma trong REMOTES ben duoi
+ * Thiet bi hong ngoai (quat, loa, TV) phat qua bo phat IR chay ESPHome:
+ *   type: custom:aurora-device-control-card
+ *   device: fan                # loai thiet bi
+ *   model: hsv                 # mau remote hong ngoai cua loai do
  *   blaster: sr06_t1_3s_01     # ten node ESPHome phat IR (phan giua cua esphome.<ten>_send_nec)
- *   entity: media_player.tv    # tuy chon: entity cho biet thiet bi dang bat hay tat
+ *   entity: switch.o_cam_quat  # tuy chon: entity cho biet thiet bi dang bat hay tat
  *
- * Dieu hoa (entity climate, vi du climate IR cua ESPHome):
- *   type: custom:ir-remote-card
- *   remote: climate
+ * Thiet bi theo entity (dieu hoa, robot hut bui, camera):
+ *   type: custom:aurora-device-control-card
+ *   device: climate
  *   entity: climate.s06_ir_toshiba_ac
  *
- * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
+ * Cau hinh cu "remote: hsv_fan" va ten card cu "custom:ir-remote-card" van chay.
+ * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.8.0";
+const VERSION = "1.0.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -299,6 +301,37 @@ const REMOTES = {
     live: true,
   },
 };
+
+// Loai thiet bi -> mau co san. Form chon theo 2 buoc: loai thiet bi, roi mau remote hong ngoai.
+// "models" tro toi cac bo ma trong REMOTES; "remote" la loai chi co mot kieu, dieu khien theo entity.
+const DEVICES = {
+  fan: { name: "Quạt", models: { hsv: "hsv_fan", toshiba: "toshiba_fan" } },
+  speaker: { name: "Loa", models: { lg: "lg_soundbar" } },
+  tv: { name: "TV", models: { samsung: "samsung_tv", lg: "lg_tv", sony: "sony_tv" } },
+  climate: { name: "Điều hòa", remote: "climate" },
+  vacuum: { name: "Robot hút bụi", remote: "vacuum" },
+  camera: { name: "Camera", remote: "camera" },
+};
+
+// Khoa trong REMOTES ung voi cau hinh: kieu moi (device + model) hoac kieu cu (remote)
+function remoteKey(config) {
+  if (!config.device) return config.remote;
+  const device = DEVICES[config.device];
+  if (!device) return undefined;
+  return device.remote || device.models[config.model] || Object.values(device.models)[0];
+}
+
+// Suy ra { device, model } tu cau hinh, ke ca cau hinh cu chi co "remote"
+function deviceOf(config) {
+  if (config.device) return { device: config.device, model: config.model };
+  for (const [device, item] of Object.entries(DEVICES)) {
+    if (item.remote === config.remote) return { device };
+    for (const [model, key] of Object.entries(item.models || {})) {
+      if (key === config.remote) return { device, model };
+    }
+  }
+  return {};
+}
 
 // Nut gan voi mot entity (dung trong "quick" va "controls"). Viet tat: chi ghi entity id.
 //   { entity, name, icon, color, action, path, service, data, confirm, wide }
@@ -650,7 +683,7 @@ function findBlasters(hass) {
 }
 
 function resolveRemote(config) {
-  return config.custom || REMOTES[config.remote];
+  return config.custom || REMOTES[remoteKey(config)];
 }
 
 // Moi nut co ma IR cua mot remote, theo thu tu trong pop-up
@@ -698,26 +731,28 @@ class IrRemoteCard extends HTMLElement {
   }
 
   static getStubConfig(hass) {
-    return { remote: "hsv_fan", blaster: findBlasters(hass)[0] || "ten_node_esphome" };
+    return { device: "fan", model: "hsv", blaster: findBlasters(hass)[0] || "ten_node_esphome" };
   }
 
   static getConfigElement() {
-    return document.createElement("ir-remote-card-editor");
+    return document.createElement("aurora-device-control-card-editor");
   }
 
   setConfig(config) {
     const def = resolveRemote(config);
     if (!def) {
       throw new Error(
-        `ir-remote-card: khong co remote '${config.remote}'. Co san: ${Object.keys(REMOTES).join(", ")}`
+        `aurora-device-control-card: khong co thiet bi '${config.device || config.remote}'` +
+          (config.model ? ` mau '${config.model}'` : "") +
+          `. Loai co san: ${Object.keys(DEVICES).join(", ")}`
       );
     }
     if (def.kind) {
       if (!config.entity) {
-        throw new Error(`ir-remote-card: remote '${config.remote}' can 'entity' (mot entity ${def.domain})`);
+        throw new Error(`aurora-device-control-card: loai '${def.domain}' can 'entity' (mot entity ${def.domain})`);
       }
     } else if (!config.blaster) {
-      throw new Error("ir-remote-card: thieu 'blaster' (ten node ESPHome phat IR)");
+      throw new Error("aurora-device-control-card: thieu 'blaster' (ten node ESPHome phat IR)");
     }
     this._config = config;
     this._def = def;
@@ -1307,7 +1342,8 @@ class IrRemoteCard extends HTMLElement {
 
 // Form cau hinh trong trinh sua card cua dashboard. Bo ma "custom" van sua bang YAML.
 const EDITOR_LABELS = {
-  remote: "Loại thiết bị",
+  device: "Loại thiết bị",
+  model: "Mẫu remote hồng ngoại",
   blaster: "Bộ phát IR (node ESPHome)",
   entity: "Entity trạng thái (tùy chọn: để card biết đang bật hay tắt)",
   device_entity: "Entity của thiết bị",
@@ -1353,16 +1389,31 @@ class IrRemoteCardEditor extends HTMLElement {
     const def = resolveRemote(this._config) || {};
     const schema = [];
     if (!this._config.custom) {
+      // Buoc 1: loai thiet bi. Buoc 2 (chi voi thiet bi hong ngoai): mau remote.
+      const { device } = deviceOf(this._config);
       schema.push({
-        name: "remote",
+        name: "device",
         required: true,
         selector: {
           select: {
             mode: "dropdown",
-            options: Object.entries(REMOTES).map(([value, item]) => ({ value, label: item.name })),
+            options: Object.entries(DEVICES).map(([value, item]) => ({ value, label: item.name })),
           },
         },
       });
+      const models = (DEVICES[device] || {}).models;
+      if (models) {
+        schema.push({
+          name: "model",
+          required: true,
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: Object.entries(models).map(([value, key]) => ({ value, label: REMOTES[key].name })),
+            },
+          },
+        });
+      }
     }
     if (def.kind) {
       schema.push({ name: "entity", label: "device_entity", required: true, selector: { entity: { domain: def.domain } } });
@@ -1431,6 +1482,14 @@ class IrRemoteCardEditor extends HTMLElement {
   _formData() {
     const def = resolveRemote(this._config) || {};
     const data = { ...this._config };
+    if (!this._config.custom) {
+      // Hien cau hinh cu (remote: ...) duoi dang loai thiet bi + mau
+      const { device, model } = deviceOf(this._config);
+      const models = (DEVICES[device] || {}).models;
+      data.device = device;
+      if (models) data.model = model || Object.keys(models)[0];
+      delete data.remote;
+    }
     if (def.kind === "entity") {
       data.quick = (this._config.quick || defaultQuick(def)).map(normalizeControl);
       data.controls = (this._config.controls || []).map(normalizeControl);
@@ -1452,9 +1511,19 @@ class IrRemoteCardEditor extends HTMLElement {
         for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster", "badge_entity", "badge_icon"]) {
           if (config[key] === "" || config[key] == null) delete config[key];
         }
+        const before = deviceOf(this._config);
+        const deviceChanged = config.device !== before.device;
+        const models = (DEVICES[config.device] || {}).models;
+        if (!models) delete config.model;
+        else if (deviceChanged || !models[config.model]) config.model = Object.keys(models)[0];
         const def = resolveRemote(config) || {};
-        if (config.remote !== this._config.remote) {
-          // Doi loai thiet bi: nut nhanh cu khong con dung, quay ve mac dinh cua loai moi
+        // Loai theo entity khong dung bo phat IR
+        if (def.kind) {
+          delete config.blaster;
+          delete config.availability_entity;
+        }
+        if (!config.custom && (deviceChanged || config.model !== before.model)) {
+          // Doi loai thiet bi hoac mau remote: nut nhanh cu khong con dung, quay ve mac dinh moi
           delete config.quick;
           if (def.kind !== "entity") delete config.controls;
         } else if (def.kind === "entity") {
@@ -1480,17 +1549,24 @@ class IrRemoteCardEditor extends HTMLElement {
   }
 }
 
-if (!customElements.get("ir-remote-card-editor")) {
-  customElements.define("ir-remote-card-editor", IrRemoteCardEditor);
-}
-
-if (!customElements.get("ir-remote-card")) {
-  customElements.define("ir-remote-card", IrRemoteCard);
+// Ten cu "ir-remote-card" duoc giu lai de dashboard da cau hinh tu truoc khong bi hong
+const define = (tag, base) => {
+  if (!customElements.get(tag)) customElements.define(tag, class extends base {});
+};
+define("aurora-device-control-card-editor", IrRemoteCardEditor);
+define("ir-remote-card-editor", IrRemoteCardEditor);
+if (!customElements.get("aurora-device-control-card")) {
+  define("aurora-device-control-card", IrRemoteCard);
+  define("ir-remote-card", IrRemoteCard);
   window.customCards = window.customCards || [];
   window.customCards.push({
-    type: "ir-remote-card",
-    name: "IR Remote Card",
-    description: "Remote hong ngoai qua ESPHome (quat, loa, TV), dieu hoa, robot hut bui va camera",
+    type: "aurora-device-control-card",
+    name: "Aurora Device Control Card",
+    description: "Dieu khien quat, loa, TV hong ngoai qua ESPHome, dieu hoa, robot hut bui va camera",
   });
-  console.info(`%c IR-REMOTE-CARD %c v${VERSION} `, "background:#3E9BF0;color:#fff", "background:#333;color:#fff");
+  console.info(
+    `%c AURORA-DEVICE-CONTROL-CARD %c v${VERSION} `,
+    "background:#6AA9F0;color:#fff",
+    "background:#333;color:#fff"
+  );
 }

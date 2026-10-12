@@ -1,19 +1,22 @@
-# IR Remote Card
+# Aurora Device Control Card
 
-Card Lovelace cho Home Assistant, dùng để điều khiển các thiết bị hồng ngoại (quạt, loa, TV, điều hòa) qua bộ phát IR chạy ESPHome. Cùng kiểu card đó cũng dùng được cho robot hút bụi và camera, để cả dashboard đồng bộ một giao diện.
+Card Lovelace cho Home Assistant, điều khiển nhiều loại thiết bị theo cùng một kiểu giao diện: quạt, loa, TV dùng remote hồng ngoại (phát qua bộ phát IR chạy ESPHome), điều hòa, robot hút bụi và camera.
 
-Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up remote đầy đủ, và tự báo khi bộ phát IR mất kết nối.
+Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up điều khiển đầy đủ, và tự báo khi thiết bị hoặc bộ phát IR mất kết nối.
 
 ```yaml
-type: custom:ir-remote-card
-remote: hsv_fan
+type: custom:aurora-device-control-card
+device: fan
+model: hsv
 blaster: sr06_t1_3s_01
 ```
+
+Card này trước đây tên là IR Remote Card. Cấu hình cũ (`type: custom:ir-remote-card`, `remote: hsv_fan`) vẫn chạy.
 
 ## Yêu cầu
 
 - Home Assistant bản gần đây (đã thử trên 2026.10).
-- Bộ phát IR chạy ESPHome, có khai báo action gửi mã, ví dụ `esphome.<tên_node>_send_nec` và `esphome.<tên_node>_send_samsung`.
+- Với thiết bị hồng ngoại: bộ phát IR chạy ESPHome, có khai báo action gửi mã (xem mục "Action cần có trên bộ phát ESPHome").
 
 Card không phụ thuộc Bubble Card, button-card hay card-mod.
 
@@ -22,82 +25,109 @@ Card không phụ thuộc Bubble Card, button-card hay card-mod.
 ### Qua HACS
 
 1. Mở HACS, bấm menu ba chấm ở góc phải trên, chọn **Custom repositories**.
-2. Dán `https://github.com/lipnguyen-ha/ha-ir-remote-card`, chọn loại **Dashboard**, bấm **Add**.
-3. Tìm **IR Remote Card** trong HACS, bấm **Download**.
+2. Dán `https://github.com/lipnguyen-ha/ha-aurora-device-control-card`, chọn loại **Dashboard**, bấm **Add**.
+3. Tìm **Aurora Device Control Card** trong HACS, bấm **Download**.
 4. Tải lại trang dashboard (trên app điện thoại: Settings → Companion app → Debugging → Reset frontend cache).
 
 ### Chép tay
 
-1. Chép `dist/ir-remote-card.js` vào `/config/www/ir-remote-card.js`.
-2. Vào **Settings → Dashboards → Resources**, thêm `/local/ir-remote-card.js`, loại **JavaScript module**.
+1. Chép `dist/aurora-device-control-card.js` vào `/config/www/aurora-device-control-card.js`.
+2. Vào **Settings → Dashboards → Resources**, thêm `/local/aurora-device-control-card.js`, loại **JavaScript module**.
+
+## Thiết bị hỗ trợ
+
+Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remote hồng ngoại** (`model`) nếu loại đó dùng hồng ngoại.
+
+| `device` | `model` | Thiết bị | Giao thức | Tình trạng |
+|---|---|---|---|---|
+| `fan` | `hsv` | Quạt trần đèn HSV | NEC | Đã dùng thật |
+| `fan` | `toshiba` | Quạt Toshiba LSD10 | NEC | Đã dùng thật |
+| `speaker` | `lg` | Loa thanh LG | Samsung (32 bit) | Đã dùng thật |
+| `tv` | `samsung` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
+| `tv` | `lg` | TV LG | NEC | **Chưa thử trên TV thật** |
+| `tv` | `sony` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
+| `climate` | Không có | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
+| `vacuum` | Không có | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
+| `camera` | Không có | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
+
+Mã của TV LG và TV Sony lấy từ các bảng mã phổ biến của hai hãng, tác giả không có TV để kiểm tra. Nếu nút nào không chạy trên TV của bạn, hãy mở issue kèm tên model.
 
 ## Cấu hình
 
-Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **IR Remote Card**. Form cấu hình cho chọn loại thiết bị, bộ phát IR (card tự liệt kê các node ESPHome có action `send_...`), màu icon, và các **nút nhanh** trên card: danh sách chức năng đổi theo loại thiết bị đang chọn, thêm bớt và kéo đổi thứ tự được. Với robot hút bụi và camera, form cho thêm từng nút bằng cách chọn entity. Cũng có thể viết YAML với các tùy chọn sau:
+Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **Aurora Device Control Card**. Form cấu hình cho chọn loại thiết bị, mẫu remote, bộ phát IR (card tự liệt kê các node ESPHome có action `send_...`), màu icon, ô trạng thái góc phải và các **nút nhanh** trên card. Danh sách chức năng của nút nhanh đổi theo loại thiết bị đang chọn, thêm bớt và kéo đổi thứ tự được.
+
+Cũng có thể viết YAML với các tùy chọn sau:
 
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
-| `remote` | Có | Tên bộ mã, xem bảng "Bộ mã có sẵn" |
-| `blaster` | Có, trừ `climate` | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
-| `entity` | Chỉ với `climate` | Entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV. Với `remote: climate` đây là entity điều hòa |
-| `name` | Không | Tên hiển thị, mặc định lấy theo bộ mã |
-| `icon` | Không | Icon hiển thị, mặc định lấy theo bộ mã |
-| `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại thiết bị một màu: quạt xanh ngọc, loa tím nhạt, TV xanh dương, điều hòa xanh da trời |
-| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Remote IR: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Robot hút bụi và camera: danh sách entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
-| `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, remote IR hiện icon remote |
+| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `climate`, `vacuum`, `camera` |
+| `model` | Với `fan`, `speaker`, `tv` | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
+| `blaster` | Với thiết bị hồng ngoại | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
+| `entity` | Với `climate`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
+| `name` | Không | Tên hiển thị, mặc định lấy theo thiết bị |
+| `icon` | Không | Icon hiển thị, mặc định lấy theo thiết bị |
+| `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại một màu: quạt xanh ngọc, loa và robot tím nhạt, TV và camera xanh dương, điều hòa xanh da trời |
+| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Robot hút bụi và camera: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
+| `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, thiết bị hồng ngoại hiện icon remote |
 | `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:thermometer` |
-| `availability_entity` | Không | Entity dùng để biết bộ phát còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
-| `custom` | Không | Bộ mã tự khai báo, thay cho `remote` (xem bên dưới) |
+| `availability_entity` | Không | Entity dùng để biết bộ phát IR còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
+| `custom` | Không | Bộ mã hồng ngoại tự khai báo, thay cho `device` và `model` (xem bên dưới) |
 
 ## Cách dùng
 
-- Bấm **icon** của card: gửi lệnh nguồn.
-- Bấm **ba nút hàng dưới**: các lệnh hay dùng.
-- Bấm **phần còn lại** của card: mở pop-up remote đầy đủ.
-- Khi bộ phát IR mất kết nối, card mờ đi và hiện "Unavailable".
+- Bấm **icon** của card: gửi lệnh nguồn (thiết bị hồng ngoại) hoặc bật tắt (điều hòa).
+- Bấm **các nút hàng dưới**: các lệnh hay dùng.
+- Bấm **phần còn lại** của card: mở pop-up điều khiển đầy đủ. Vuốt xuống để đóng.
+- Khi bộ phát IR hoặc thiết bị mất kết nối, card mờ đi và hiện "Unavailable".
+
+### Thiết bị hồng ngoại
 
 Remote hồng ngoại chỉ gửi lệnh một chiều, nên mặc định card không biết thiết bị đang bật hay tắt và hiện viền nét đứt. Nếu thiết bị có một entity khác báo được trạng thái (TV có kết nối mạng, ổ cắm đo điện), khai báo nó ở `entity`: card sẽ bỏ viền nét đứt và đổi màu khi thiết bị bật.
 
 ```yaml
-type: custom:ir-remote-card
-remote: samsung_tv
+type: custom:aurora-device-control-card
+device: tv
+model: samsung
 blaster: s06_ir
 entity: media_player.samsung_tv
+quick: [power, mute, vol_down, vol_up]
 ```
 
-## Điều hòa
+### Điều hòa
 
 Điều hòa hồng ngoại trong ESPHome đã là một entity `climate` đầy đủ, nên card điều khiển thẳng entity đó, không cần `blaster`:
 
 ```yaml
-type: custom:ir-remote-card
-remote: climate
+type: custom:aurora-device-control-card
+device: climate
 entity: climate.s06_ir_toshiba_ac
 ```
 
 - Bấm icon: bật hoặc tắt.
-- Ba nút hàng dưới: các chế độ đầu tiên mà điều hòa hỗ trợ (làm lạnh, hút ẩm, quạt...), chế độ đang chạy được tô màu.
+- Nút hàng dưới: các chế độ điều hòa hỗ trợ (làm lạnh, hút ẩm, quạt...), chế độ đang chạy được tô màu.
 - Góc phải: nhiệt độ đang đặt.
 - Pop-up: card thermostat gốc của Home Assistant, có vòng chỉnh nhiệt độ, chọn chế độ, tốc độ quạt và đảo gió nếu điều hòa hỗ trợ.
 
-## Robot hút bụi và camera
+### Robot hút bụi và camera
 
-Hai loại này không gửi mã IR. Card theo dõi một entity, còn các nút do bạn khai báo bằng danh sách entity.
+Hai loại này theo dõi một entity, còn các nút do bạn khai báo bằng danh sách entity hoặc action.
 
 ```yaml
-type: custom:ir-remote-card
-remote: vacuum
+type: custom:aurora-device-control-card
+device: vacuum
 entity: vacuum.roborock
 name: Roborock
-badge_entity: sensor.roborock_cleaning_progress   # hiện ở góc phải
-quick:                                            # các nút ở hàng dưới
+badge_entity: sensor.roborock_cleaning_progress
+badge_icon: mdi:progress-check
+quick:
   - { entity: button.roborock_clean_all, name: Dọn nhà }
   - { entity: button.roborock_clean_living_room, name: Dọn PK }
+  - { icon: mdi:home-import-outline, service: vacuum.return_to_base }
 ```
 
 ```yaml
-type: custom:ir-remote-card
-remote: camera
+type: custom:aurora-device-control-card
+device: camera
 entity: camera.tapo_hd_stream
 privacy_entity: switch.tapo_privacy    # góc phải hiện Online / Riêng tư / Offline
 quick:
@@ -115,42 +145,26 @@ Mỗi nút trong `quick` và `controls` nhận:
 | Trường | Mô tả |
 |---|---|
 | `entity` | Entity của nút. Viết tắt được: chỉ ghi entity id thay cho cả khối |
-| `name` | Chữ hiển thị. Bỏ trống thì nút chỉ có icon |
+| `name` | Chữ hiển thị. Ở `quick`, bỏ trống thì lấy tên entity. Ở `controls`, bỏ trống thì nút chỉ có icon |
 | `icon` | Bỏ trống thì lấy icon của entity |
 | `color` | Màu khi entity đang bật |
 | `action` | `toggle`, `press`, `more-info` hoặc `navigate`. Mặc định theo loại entity: `button` thì bấm, `switch`/`light`/`siren`... thì bật tắt, còn lại mở hộp thoại của entity |
-| `path` | Đường dẫn để chuyển trang (tự hiểu là `navigate`) |
 | `service` | Gọi một action của Home Assistant thay cho bấm entity, ví dụ `vacuum.return_to_base`. Action chạy trên `entity` của nút, không có thì trên entity của card. Thêm tham số bằng `data` |
+| `path` | Đường dẫn để chuyển trang (tự hiểu là `navigate`) |
 | `confirm` | Câu hỏi xác nhận trước khi thực hiện |
 | `wide` | `true` để nút chiếm cả hàng |
 
 - **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Khi chưa khai báo `quick`, card có sẵn một nút dừng dọn và quay về dock. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
 - **Camera:** pop-up hiện hình trực tiếp. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `columns` đổi số cột của lưới nút, mặc định 3.
 
-## Bộ mã có sẵn
-
-| `remote` | Thiết bị | Giao thức | Tình trạng |
-|---|---|---|---|
-| `hsv_fan` | Quạt trần đèn HSV | NEC | Đã dùng thật |
-| `toshiba_fan` | Quạt Toshiba LSD10 | NEC | Đã dùng thật |
-| `lg_soundbar` | Loa thanh LG | Samsung (32 bit) | Đã dùng thật |
-| `samsung_tv` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
-| `lg_tv` | TV LG | NEC | **Chưa thử trên TV thật** |
-| `sony_tv` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
-| `climate` | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
-| `vacuum` | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
-| `camera` | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
-
-Mã của `lg_tv` và `sony_tv` lấy từ các bảng mã phổ biến của hai hãng, tác giả không có TV để kiểm tra. Nếu nút nào không chạy trên TV của bạn, hãy mở issue kèm tên model.
-
 ## Action cần có trên bộ phát ESPHome
 
-Card gọi `esphome.<blaster>_send_<giao thức>`. Khai báo các action tương ứng trong YAML của bộ phát:
+Với thiết bị hồng ngoại, card gọi `esphome.<blaster>_send_<giao thức>`. Khai báo các action tương ứng trong YAML của bộ phát:
 
 ```yaml
 api:
   actions:
-    # Dung cho: hsv_fan, toshiba_fan, lg_tv
+    # Dung cho: quat HSV, quat Toshiba, TV LG
     - action: send_nec
       variables:
         address: int
@@ -162,7 +176,7 @@ api:
             command: !lambda 'return (uint16_t) command;'
             command_repeats: !lambda 'return (uint8_t) repeats;'
 
-    # Dung cho: samsung_tv, lg_soundbar
+    # Dung cho: TV Samsung, loa LG
     - action: send_samsung
       variables:
         address: int
@@ -172,7 +186,7 @@ api:
             data: !lambda 'return ((uint32_t) address << 16) | ((uint32_t) command & 0xFFFF);'
             nbits: 32
 
-    # Dung cho: sony_tv (Sony yeu cau gui lap lai 3 lan)
+    # Dung cho: TV Sony (Sony yeu cau gui lap lai 3 lan)
     - action: send_sony
       variables:
         data: int
@@ -186,16 +200,17 @@ api:
               wait_time: 45ms
 ```
 
-## Thêm thiết bị của riêng bạn
+## Thêm remote hồng ngoại của riêng bạn
 
 Khai báo bộ mã ngay trong card bằng `custom`:
 
 ```yaml
-type: custom:ir-remote-card
+type: custom:aurora-device-control-card
 blaster: ten_node_esphome
 custom:
   name: Quạt của tôi
   icon: mdi:fan
+  color: "#5CC8BE"
   protocol: nec        # phần đuôi của action esphome.<blaster>_send_<protocol>
   address: 65025       # địa chỉ mặc định cho mọi nút
   repeats: 2           # bỏ dòng này nếu action không nhận repeats
