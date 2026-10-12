@@ -17,10 +17,138 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.6.0";
+const VERSION = "1.7.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
+
+// Chu hien tren card, pop-up va form: tieng Viet khi Home Assistant dat tieng Viet, con lai tieng Anh.
+// Them ngon ngu = them mot khoi cung khoa vao day; khoa thieu thi lay ban tieng Anh.
+const STRINGS = {
+  en: {
+    device_fan: "Fan",
+    device_speaker: "Speaker",
+    device_tv: "TV",
+    device_appletv: "Apple TV",
+    device_climate: "Air conditioner",
+    device_vacuum: "Robot vacuum",
+    device_camera: "Camera",
+    name_climate: "Air conditioner",
+    name_vacuum: "Robot vacuum",
+    hvac_cool: "Cool",
+    hvac_dry: "Dry",
+    hvac_fan_only: "Fan only",
+    hvac_heat: "Heat",
+    hvac_heat_cool: "Auto (heat/cool)",
+    hvac_auto: "Auto",
+    privacy: "Privacy",
+    missing_entity: "No entity selected",
+    missing_blaster: "No IR blaster selected",
+    keyboard_placeholder: "Type to enter text on the device",
+    paused: "Paused",
+    playing: "Playing",
+    more_keys: "Number keys and more",
+    no_config_entry: "could not find the device's config entry",
+    pad_title: "Navigation pad in the pop-up (four direction buttons)",
+    label_device: "Device type",
+    label_model: "Infrared remote model",
+    label_blaster: "IR blaster (ESPHome node)",
+    label_entity: "State entity (optional: lets the card know whether the device is on)",
+    label_device_entity: "Device entity",
+    label_name: "Display name (empty = default name)",
+    label_icon: "Icon (empty = default icon)",
+    label_color: "Icon colour (empty = default colour of the device type)",
+    label_availability_entity: "Entity that reports lost connection (empty = automatic)",
+    label_badge_entity: "Status badge, top right: entity to show (empty = default)",
+    label_badge_icon: "Status badge, top right: leading icon (empty = default of the device type)",
+    label_hide_quick: "Hide the quick button row (card as short as a tile)",
+    label_quick: "Quick buttons on the card (pick one or more, drag to reorder)",
+    label_quick_entities: "Quick buttons on the card",
+    label_remote_entity: "Remote entity used to send commands (empty = found by name)",
+    label_apps: "Apps shown in the pop-up (tap to open)",
+    label_controls: "Buttons in the pop-up",
+    label_columns: "Number of columns of the pop-up button grid",
+    label_up: "Up",
+    label_down: "Down",
+    label_left: "Left",
+    label_right: "Right",
+    field_entity: "Entity (button, switch, light...)",
+    field_name: "Label (empty = entity name)",
+    field_icon: "Icon (empty = entity icon)",
+    field_service: "Action to call instead of pressing the entity (e.g. vacuum.return_to_base)",
+    field_name_popup: "Label (empty = icon only)",
+    field_color: "Colour when on (colour name or #hex code)",
+    field_path: "Navigate to a page (instead of an entity)",
+    field_confirm: "Confirmation question before pressing",
+    field_wide: "Take the whole row",
+  },
+  vi: {
+    device_fan: "Quạt",
+    device_speaker: "Loa",
+    device_tv: "TV",
+    device_appletv: "Apple TV",
+    device_climate: "Điều hòa",
+    device_vacuum: "Robot hút bụi",
+    device_camera: "Camera",
+    name_climate: "Điều hòa",
+    name_vacuum: "Robot hút bụi",
+    hvac_cool: "Làm lạnh",
+    hvac_dry: "Hút ẩm",
+    hvac_fan_only: "Quạt",
+    hvac_heat: "Sưởi",
+    hvac_heat_cool: "Tự động (sưởi/lạnh)",
+    hvac_auto: "Tự động",
+    privacy: "Riêng tư",
+    missing_entity: "Chưa chọn entity",
+    missing_blaster: "Chưa chọn bộ phát",
+    keyboard_placeholder: "Gõ để nhập trên thiết bị",
+    paused: "Tạm dừng",
+    playing: "Đang phát",
+    more_keys: "Phím số và phím khác",
+    no_config_entry: "không tìm thấy config entry của thiết bị",
+    pad_title: "Vòng điều hướng trong pop-up (bốn nút hướng)",
+    label_device: "Loại thiết bị",
+    label_model: "Mẫu remote hồng ngoại",
+    label_blaster: "Bộ phát IR (node ESPHome)",
+    label_entity: "Entity trạng thái (tùy chọn: để card biết đang bật hay tắt)",
+    label_device_entity: "Entity của thiết bị",
+    label_name: "Tên hiển thị (để trống = tên mặc định)",
+    label_icon: "Icon (để trống = icon mặc định)",
+    label_color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
+    label_availability_entity: "Entity báo mất kết nối (để trống = tự động)",
+    label_badge_entity: "Ô trạng thái góc phải: entity hiển thị (để trống = mặc định)",
+    label_badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = mặc định của loại thiết bị)",
+    label_hide_quick: "Ẩn hàng nút nhanh (card thấp bằng một tile)",
+    label_quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
+    label_quick_entities: "Nút nhanh trên card",
+    label_remote_entity: "Entity remote để gửi lệnh (để trống = tự tìm theo tên)",
+    label_apps: "Ứng dụng hiện trong pop-up (bấm để mở)",
+    label_controls: "Nút trong pop-up",
+    label_columns: "Số cột của lưới nút trong pop-up",
+    label_up: "Lên",
+    label_down: "Xuống",
+    label_left: "Trái",
+    label_right: "Phải",
+    field_entity: "Entity (nút bấm, công tắc, đèn...)",
+    field_name: "Chữ hiển thị (để trống = tên entity)",
+    field_icon: "Icon (để trống = icon của entity)",
+    field_service: "Action gọi thay cho bấm entity (vd. vacuum.return_to_base)",
+    field_name_popup: "Chữ hiển thị (để trống = chỉ icon)",
+    field_color: "Màu khi bật (tên màu hoặc mã #hex)",
+    field_path: "Chuyển tới trang (thay cho entity)",
+    field_confirm: "Câu hỏi xác nhận trước khi bấm",
+    field_wide: "Chiếm cả hàng",
+  },
+};
+
+// Ngon ngu dang dung, lay tu ho so nguoi dung cua Home Assistant moi khi card nhan hass
+let LANG = "en";
+function setLang(hass) {
+  const code = String((hass && ((hass.locale && hass.locale.language) || hass.language)) || "en").toLowerCase();
+  const base = code.split("-")[0];
+  LANG = STRINGS[code] ? code : STRINGS[base] ? base : "en";
+}
+const tr = (key, fallback) => STRINGS[LANG][key] || STRINGS.en[key] || fallback || key;
 
 // Cac giao thuc ESPHome khong co san (RCA, Kaseikyo, quat 12 bit...) duoc doi thanh chuoi Pronto
 // va gui bang action send_pronto, nen khong can them action moi tren bo phat.
@@ -555,7 +683,7 @@ const REMOTES = {
   climate: {
     kind: "climate",
     domain: "climate",
-    name: "Điều hòa",
+    name: "Air conditioner",
     icon: "mdi:air-conditioner",
     badge_icon: "mdi:thermometer",
     color: "#5CC4EA",
@@ -566,7 +694,7 @@ const REMOTES = {
   vacuum: {
     kind: "entity",
     domain: "vacuum",
-    name: "Robot hút bụi",
+    name: "Robot vacuum",
     icon: "mdi:robot-vacuum",
     color: "#B394E8",
     button_height: 54,
@@ -591,8 +719,8 @@ const REMOTES = {
 // Loai thiet bi -> mau co san. Form chon theo 2 buoc: loai thiet bi, roi mau remote hong ngoai.
 // "models" tro toi cac bo ma trong REMOTES; "remote" la loai chi co mot kieu, dieu khien theo entity.
 const DEVICES = {
-  fan: { name: "Quạt", models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan" } },
-  speaker: { name: "Loa", models: { lg: "lg_soundbar" } },
+  fan: { name: "Fan", models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan" } },
+  speaker: { name: "Speaker", models: { lg: "lg_soundbar" } },
   tv: { name: "TV", models: {
       samsung: "samsung_tv",
       lg: "lg_tv",
@@ -603,8 +731,8 @@ const DEVICES = {
       hisense: "hisense_tv",
     }, },
   appletv: { name: "Apple TV", remote: "appletv" },
-  climate: { name: "Điều hòa", remote: "climate" },
-  vacuum: { name: "Robot hút bụi", remote: "vacuum" },
+  climate: { name: "Air conditioner", remote: "climate" },
+  vacuum: { name: "Robot vacuum", remote: "vacuum" },
   camera: { name: "Camera", remote: "camera" },
 };
 
@@ -1251,15 +1379,6 @@ function buttonTitle(btn) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-const HVAC_LABELS = {
-  cool: "Làm lạnh",
-  dry: "Hút ẩm",
-  fan_only: "Quạt",
-  heat: "Sưởi",
-  heat_cool: "Tự động (sưởi/lạnh)",
-  auto: "Tự động",
-};
-
 // Cac che do dieu hoa co the dat lam nut nhanh, theo thu tu uu tien
 function climateModes(stateObj) {
   const supported = (stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"];
@@ -1328,6 +1447,7 @@ class IrRemoteCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    setLang(hass);
     this._update();
     this._updateControls();
     this._updateKeyboard();
@@ -1373,7 +1493,7 @@ class IrRemoteCard extends HTMLElement {
     if (this._config.name) return this._config.name;
     const stateObj = this._stateObj;
     if (this._def.kind && stateObj && stateObj.attributes.friendly_name) return stateObj.attributes.friendly_name;
-    return this._def.name;
+    return tr(`name_${this._def.domain}`, this._def.name);
   }
 
   get _icon() {
@@ -1531,7 +1651,7 @@ class IrRemoteCard extends HTMLElement {
     if (live) {
       const privacy = states[this._config.privacy_entity];
       if (offline) [text, color] = ["● Offline", "#ef8a80"];
-      else if (privacy && privacy.state === "on") [text, color] = ["● Riêng tư", "#f2c879"];
+      else if (privacy && privacy.state === "on") [text, color] = [`● ${tr("privacy")}`, "#f2c879"];
       else [text, color] = ["● Online", "#81c995"];
     } else if (offline) {
       text = (this._hass && this._hass.localize("state.default.unavailable")) || "Unavailable";
@@ -1563,7 +1683,7 @@ class IrRemoteCard extends HTMLElement {
   }
 
   _isIrMissingText() {
-    return this._def.kind ? "Chưa chọn entity" : "Chưa chọn bộ phát";
+    return tr(this._def.kind ? "missing_entity" : "missing_blaster");
   }
 
   _notifyError(err) {
@@ -1614,7 +1734,7 @@ class IrRemoteCard extends HTMLElement {
 
   _sendText(text) {
     const entryId = this._configEntryId();
-    if (!entryId) return this._notifyError("khong tim thay config entry cua thiet bi");
+    if (!entryId) return this._notifyError(tr("no_config_entry"));
     const call = text
       ? this._hass.callService("apple_tv", "set_keyboard_text", { config_entry_id: entryId, text })
       : this._hass.callService("apple_tv", "clear_keyboard_text", { config_entry_id: entryId });
@@ -1662,7 +1782,7 @@ class IrRemoteCard extends HTMLElement {
     const focused = this._keyboardFocused();
     const wasHidden = box.hidden;
     box.hidden = !focused;
-    input.placeholder = "Gõ để nhập trên thiết bị";
+    input.placeholder = tr("keyboard_placeholder");
     if (focused && wasHidden) {
       input.value = "";
       input.focus();
@@ -1690,7 +1810,7 @@ class IrRemoteCard extends HTMLElement {
     if (!active) return;
     const attrs = stateObj.attributes;
     view.title.textContent = attrs.media_title || attrs.app_name || this._name;
-    const status = state === "paused" ? "Tạm dừng" : "Đang phát";
+    const status = tr(state === "paused" ? "paused" : "playing");
     view.sub.textContent = [attrs.media_artist, attrs.media_title ? attrs.app_name : "", status]
       .filter(Boolean)
       .join(" · ");
@@ -1812,7 +1932,7 @@ class IrRemoteCard extends HTMLElement {
     const chevron = icon("mdi:chevron-down");
     const toggle = el("button", { class: "more" }, [
       icon("mdi:dialpad"),
-      el("span", { text: "Phím số và phím khác" }),
+      el("span", { text: tr("more_keys") }),
       chevron,
     ]);
     toggle.addEventListener("click", () => {
@@ -2278,46 +2398,22 @@ class IrRemoteCard extends HTMLElement {
 }
 
 // Form cau hinh trong trinh sua card cua dashboard. Bo ma "custom" van sua bang YAML.
-const EDITOR_LABELS = {
-  device: "Loại thiết bị",
-  model: "Mẫu remote hồng ngoại",
-  blaster: "Bộ phát IR (node ESPHome)",
-  entity: "Entity trạng thái (tùy chọn: để card biết đang bật hay tắt)",
-  device_entity: "Entity của thiết bị",
-  name: "Tên hiển thị (để trống = tên mặc định)",
-  icon: "Icon (để trống = icon mặc định)",
-  color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
-  availability_entity: "Entity báo mất kết nối (để trống = tự động)",
-  badge_entity: "Ô trạng thái góc phải: entity hiển thị (để trống = mặc định)",
-  badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = mặc định của loại thiết bị)",
-  hide_quick: "Ẩn hàng nút nhanh (card thấp bằng một tile)",
-  quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
-  quick_entities: "Nút nhanh trên card",
-  remote_entity: "Entity remote để gửi lệnh (để trống = tự tìm theo tên)",
-  apps: "Ứng dụng hiện trong pop-up (bấm để mở)",
-  controls: "Nút trong pop-up",
-  columns: "Số cột của lưới nút trong pop-up",
-  up: "Lên",
-  down: "Xuống",
-  left: "Trái",
-  right: "Phải",
-};
-
-// Cac truong cua mot nut gan voi entity, dung cho form cua vacuum / camera
-const CONTROL_FIELDS = {
-  entity: { label: "Entity (nút bấm, công tắc, đèn...)", selector: { entity: {} } },
-  name: { label: "Chữ hiển thị (để trống = tên entity)", selector: { text: {} } },
-  icon: { label: "Icon (để trống = icon của entity)", selector: { icon: {} } },
-  service: { label: "Action gọi thay cho bấm entity (vd. vacuum.return_to_base)", selector: { text: {} } },
-};
-const POPUP_CONTROL_FIELDS = {
-  ...CONTROL_FIELDS,
-  name: { label: "Chữ hiển thị (để trống = chỉ icon)", selector: { text: {} } },
-  color: { label: "Màu khi bật (tên màu hoặc mã #hex)", selector: { text: {} } },
-  path: { label: "Chuyển tới trang (thay cho entity)", selector: { text: {} } },
-  confirm: { label: "Câu hỏi xác nhận trước khi bấm", selector: { text: {} } },
-  wide: { label: "Chiếm cả hàng", selector: { boolean: {} } },
-};
+// Cac truong cua mot nut gan voi entity, dung cho form cua vacuum / camera.
+// La ham de nhan chu theo ngon ngu dang dung luc mo form.
+const controlFields = () => ({
+  entity: { label: tr("field_entity"), selector: { entity: {} } },
+  name: { label: tr("field_name"), selector: { text: {} } },
+  icon: { label: tr("field_icon"), selector: { icon: {} } },
+  service: { label: tr("field_service"), selector: { text: {} } },
+});
+const popupControlFields = () => ({
+  ...controlFields(),
+  name: { label: tr("field_name_popup"), selector: { text: {} } },
+  color: { label: tr("field_color"), selector: { text: {} } },
+  path: { label: tr("field_path"), selector: { text: {} } },
+  confirm: { label: tr("field_confirm"), selector: { text: {} } },
+  wide: { label: tr("field_wide"), selector: { boolean: {} } },
+});
 
 class IrRemoteCardEditor extends HTMLElement {
   setConfig(config) {
@@ -2327,6 +2423,7 @@ class IrRemoteCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    setLang(hass);
     this._update();
   }
 
@@ -2342,7 +2439,7 @@ class IrRemoteCardEditor extends HTMLElement {
         selector: {
           select: {
             mode: "dropdown",
-            options: Object.entries(DEVICES).map(([value, item]) => ({ value, label: item.name })),
+            options: Object.entries(DEVICES).map(([value, item]) => ({ value, label: tr(`device_${value}`, item.name) })),
           },
         },
       });
@@ -2403,7 +2500,7 @@ class IrRemoteCardEditor extends HTMLElement {
         {
           name: "pad",
           type: "expandable",
-          title: "Vòng điều hướng trong pop-up (bốn nút hướng)",
+          title: tr("pad_title"),
           schema: ["up", "down", "left", "right"].map((name) => ({ name, selector: { entity: {} } })),
         },
         { name: "columns", selector: { number: { min: 2, max: 6, mode: "box" } } }
@@ -2416,7 +2513,7 @@ class IrRemoteCardEditor extends HTMLElement {
         schema.push({
           name: "controls",
           selector: {
-            object: { multiple: true, label_field: "name", description_field: "entity", fields: POPUP_CONTROL_FIELDS },
+            object: { multiple: true, label_field: "name", description_field: "entity", fields: popupControlFields() },
           },
         });
       }
@@ -2425,19 +2522,19 @@ class IrRemoteCardEditor extends HTMLElement {
         {
           name: "quick",
           label: "quick_entities",
-          selector: { object: { multiple: true, label_field: "name", description_field: "entity", fields: CONTROL_FIELDS } },
+          selector: { object: { multiple: true, label_field: "name", description_field: "entity", fields: controlFields() } },
         },
         {
           name: "controls",
           selector: {
-            object: { multiple: true, label_field: "name", description_field: "entity", fields: POPUP_CONTROL_FIELDS },
+            object: { multiple: true, label_field: "name", description_field: "entity", fields: popupControlFields() },
           },
         }
       );
     } else {
       const options =
         def.kind === "climate"
-          ? climateModes(this._stateObj()).map((mode) => ({ value: mode, label: HVAC_LABELS[mode] || mode }))
+          ? climateModes(this._stateObj()).map((mode) => ({ value: mode, label: tr(`hvac_${mode}`, mode) }))
           : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));
       schema.push({
         name: "quick",
@@ -2481,7 +2578,7 @@ class IrRemoteCardEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     if (!this._form) {
       this._form = document.createElement("ha-form");
-      this._form.computeLabel = (field) => EDITOR_LABELS[field.label || field.name] || field.name;
+      this._form.computeLabel = (field) => tr(`label_${field.label || field.name}`, field.name);
       this._form.addEventListener("value-changed", (ev) => {
         ev.stopPropagation();
         const config = { ...ev.detail.value };
@@ -2560,7 +2657,7 @@ if (!customElements.get("aurora-device-control-card")) {
   window.customCards.push({
     type: "aurora-device-control-card",
     name: "Aurora Device Control Card",
-    description: "Dieu khien quat, loa, TV hong ngoai qua ESPHome, dieu hoa, robot hut bui va camera",
+    description: "Control IR fans, speakers and TVs through ESPHome, plus Apple TV, air conditioners, robot vacuums and cameras",
   });
   console.info(
     `%c AURORA-DEVICE-CONTROL-CARD %c v${VERSION} `,

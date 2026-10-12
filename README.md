@@ -1,8 +1,10 @@
+**English** | [Tiếng Việt](README.vi.md)
+
 # Aurora Device Control Card
 
-Card Lovelace cho Home Assistant, điều khiển nhiều loại thiết bị theo cùng một kiểu giao diện: quạt, loa, TV dùng remote hồng ngoại (phát qua bộ phát IR chạy ESPHome), điều hòa, robot hút bụi và camera.
+A Lovelace card for Home Assistant that controls many kinds of devices with one consistent interface: fans, speakers and TVs that use an infrared remote (sent through an IR blaster running ESPHome), air conditioners, robot vacuums and cameras.
 
-Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up điều khiển đầy đủ, và tự báo khi thiết bị hoặc bộ phát IR mất kết nối.
+Each device needs only a few lines of configuration. The card draws the buttons on the dashboard and the full control pop-up by itself, and tells you when the device or the IR blaster loses its connection.
 
 ```yaml
 type: custom:aurora-device-control-card
@@ -11,91 +13,93 @@ model: hsv
 blaster: sr06_t1_3s_01
 ```
 
-Card này trước đây tên là IR Remote Card. Cấu hình cũ (`type: custom:ir-remote-card`, `remote: hsv_fan`) vẫn chạy.
+The card, its pop-up and its configuration form are shown in Vietnamese when Home Assistant is set to Vietnamese, and in English for every other language.
 
-## Yêu cầu
+This card was previously named IR Remote Card. The old configuration (`type: custom:ir-remote-card`, `remote: hsv_fan`) still works.
 
-- Home Assistant bản gần đây (đã thử trên 2026.10).
-- Với thiết bị hồng ngoại: bộ phát IR chạy ESPHome, có khai báo action gửi mã (xem mục "Action cần có trên bộ phát ESPHome").
+## Requirements
 
-Card không phụ thuộc Bubble Card, button-card hay card-mod.
+- A recent Home Assistant release (tested on 2026.10).
+- For infrared devices: an IR blaster running ESPHome, with the actions that send codes declared (see "Actions required on the ESPHome blaster").
 
-## Cài đặt
+The card does not depend on Bubble Card, button-card or card-mod.
 
-### Qua HACS
+## Installation
 
-1. Mở HACS, bấm menu ba chấm ở góc phải trên, chọn **Custom repositories**.
-2. Dán `https://github.com/lipnguyen-ha/ha-aurora-device-control-card`, chọn loại **Dashboard**, bấm **Add**.
-3. Tìm **Aurora Device Control Card** trong HACS, bấm **Download**.
-4. Tải lại trang dashboard (trên app điện thoại: Settings → Companion app → Debugging → Reset frontend cache).
+### Via HACS
 
-### Chép tay
+1. Open HACS, click the three-dot menu in the top right corner, and choose **Custom repositories**.
+2. Paste `https://github.com/lipnguyen-ha/ha-aurora-device-control-card`, choose the type **Dashboard**, and click **Add**.
+3. Find **Aurora Device Control Card** in HACS and click **Download**.
+4. Reload the dashboard page (in the phone app: Settings → Companion app → Debugging → Reset frontend cache).
 
-1. Chép `dist/aurora-device-control-card.js` vào `/config/www/aurora-device-control-card.js`.
-2. Vào **Settings → Dashboards → Resources**, thêm `/local/aurora-device-control-card.js`, loại **JavaScript module**.
+### Manual copy
 
-## Thiết bị hỗ trợ
+1. Copy `dist/aurora-device-control-card.js` to `/config/www/aurora-device-control-card.js`.
+2. Go to **Settings → Dashboards → Resources** and add `/local/aurora-device-control-card.js` with the type **JavaScript module**.
 
-Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remote hồng ngoại** (`model`) nếu loại đó dùng hồng ngoại.
+## Supported devices
 
-| `device` | `model` | Thiết bị | Giao thức | Tình trạng |
+Choose in two steps: the **device type** (`device`), then the **infrared remote model** (`model`) if that type uses infrared.
+
+| `device` | `model` | Device | Protocol | Status |
 |---|---|---|---|---|
-| `fan` | `hsv` | Quạt trần đèn HSV | NEC | Đã dùng thật |
-| `fan` | `toshiba` | Quạt Toshiba LSD10 | NEC | Đã dùng thật |
-| `fan` | `senko` | Quạt Senko (remote 12 bit) | Pronto | **Chưa thử trên quạt thật** |
-| `fan` | `mitsubishi` | Quạt Mitsubishi (R30J) | Pronto | **Chưa thử trên quạt thật** |
-| `speaker` | `lg` | Loa thanh LG | Samsung (32 bit) | Đã dùng thật |
-| `tv` | `samsung` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
-| `tv` | `lg` | TV LG | NEC | **Chưa thử trên TV thật** |
-| `tv` | `sony` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
-| `tv` | `tcl` | TV TCL | Pronto (RCA) | **Chưa thử trên TV thật** |
-| `tv` | `panasonic` | TV Panasonic | Pronto (Kaseikyo) | **Chưa thử trên TV thật** |
-| `tv` | `toshiba` | TV Toshiba | NEC | **Chưa thử trên TV thật** |
-| `tv` | `hisense` | TV Hisense | NEC | **Chưa thử trên TV thật** |
-| `appletv` | Không có | Apple TV (entity media_player và remote) | Qua mạng, không dùng IR | Mới thêm |
-| `climate` | Không có | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
-| `vacuum` | Không có | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
-| `camera` | Không có | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
+| `fan` | `hsv` | HSV ceiling fan with light | NEC | Tested on real hardware |
+| `fan` | `toshiba` | Toshiba LSD10 fan | NEC | Tested on real hardware |
+| `fan` | `senko` | Senko fan (12-bit remote) | Pronto | **Not tested on a real fan** |
+| `fan` | `mitsubishi` | Mitsubishi fan (R30J) | Pronto | **Not tested on a real fan** |
+| `speaker` | `lg` | LG soundbar | Samsung (32-bit) | Tested on real hardware |
+| `tv` | `samsung` | Samsung TV | Samsung (32-bit) | Tested on real hardware (Q70) |
+| `tv` | `lg` | LG TV | NEC | **Not tested on a real TV** |
+| `tv` | `sony` | Sony TV | Sony SIRC | **Not tested on a real TV** |
+| `tv` | `tcl` | TCL TV | Pronto (RCA) | **Not tested on a real TV** |
+| `tv` | `panasonic` | Panasonic TV | Pronto (Kaseikyo) | **Not tested on a real TV** |
+| `tv` | `toshiba` | Toshiba TV | NEC | **Not tested on a real TV** |
+| `tv` | `hisense` | Hisense TV | NEC | **Not tested on a real TV** |
+| `appletv` | None | Apple TV (media_player and remote entities) | Over the network, no IR | Newly added |
+| `climate` | None | Air conditioner (climate entity) | No IR codes | Tested on real hardware |
+| `vacuum` | None | Robot vacuum (vacuum entity) | No IR codes | Tested on real hardware (Roborock) |
+| `camera` | None | Camera (camera entity) | No IR codes | Tested on real hardware (Tapo C260) |
 
-Các mẫu ghi "chưa thử" lấy mã từ kho mã công khai ([Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB), [irdb](https://github.com/probonopd/irdb)) hoặc bảng mã phổ biến của hãng, tác giả không có thiết bị để kiểm tra. Một hãng có thể dùng nhiều bộ mã qua các đời máy, nên nếu nút nào không chạy trên thiết bị của bạn, hãy mở issue kèm tên model.
+The models marked "not tested" take their codes from public code databases ([Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB), [irdb](https://github.com/probonopd/irdb)) or from the manufacturer's commonly used code tables; the author has no device to check them on. A manufacturer may use several code sets across product generations, so if a button does not work on your device, please open an issue and include the model name.
 
-- Các mẫu ghi giao thức **Pronto** gửi qua action `send_pronto` của bộ phát, không cần thêm action riêng cho từng hãng.
-- TV Toshiba đời mới chạy VIDAA do Hisense sản xuất: nếu mẫu `toshiba` không ăn, hãy thử `hisense`.
-- Mẫu `senko` dùng cho loại remote 12 bit mà nhiều quạt bán ở Việt Nam dùng chung. Quạt hãng khác cùng loại chip có thể nhận được, nhưng mỗi hãng thường đặt mã riêng.
+- The models whose protocol is **Pronto** are sent through the blaster's `send_pronto` action; no separate action per manufacturer is needed.
+- Newer Toshiba TVs running VIDAA are made by Hisense: if the `toshiba` model does not work, try `hisense`.
+- The `senko` model is for the 12-bit remote type shared by many fans sold in Vietnam. Fans from other manufacturers with the same kind of chip may respond, but each manufacturer usually sets its own codes.
 
-## Cấu hình
+## Configuration
 
-Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **Aurora Device Control Card**. Form cấu hình cho chọn loại thiết bị, mẫu remote, bộ phát IR (card tự liệt kê các node ESPHome có action `send_...`), màu icon, ô trạng thái góc phải và các **nút nhanh** trên card. Danh sách chức năng của nút nhanh đổi theo loại thiết bị đang chọn, thêm bớt và kéo đổi thứ tự được.
+Add the card from the UI: edit the dashboard, click **Add card**, and search for **Aurora Device Control Card**. The configuration form lets you choose the device type, the remote model, the IR blaster (the card lists the ESPHome nodes that have a `send_...` action by itself), the icon color, the status box in the right corner and the **quick buttons** on the card. The list of functions available for quick buttons changes with the selected device type, and you can add, remove and drag to reorder them.
 
-Cũng có thể viết YAML với các tùy chọn sau:
+You can also write YAML with the following options:
 
-| Tùy chọn | Bắt buộc | Mô tả |
+| Option | Required | Description |
 |---|---|---|
-| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `appletv`, `climate`, `vacuum`, `camera` |
-| `model` | Với `fan`, `speaker`, `tv` | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
-| `blaster` | Với thiết bị hồng ngoại | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
-| `entity` | Với `appletv`, `climate`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
-| `name` | Không | Tên hiển thị, mặc định lấy theo thiết bị |
-| `icon` | Không | Icon hiển thị, mặc định lấy theo thiết bị |
-| `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại một màu: quạt xanh ngọc, loa và robot tím nhạt, TV và camera xanh dương, Apple TV hồng, điều hòa xanh da trời |
-| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Robot hút bụi và camera: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
-| `hide_quick` | Không | `true` để ẩn hàng nút nhanh. Card khi đó thấp bằng một tile của Home Assistant (56px), xếp cạnh tile đèn và công tắc cho đều. Bấm vào card vẫn mở pop-up đầy đủ |
-| `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, thiết bị hồng ngoại hiện icon remote |
-| `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:progress-check`. Điều hòa mặc định là `mdi:thermometer` |
-| `ir_gap` | Không | Khoảng cách tối thiểu giữa hai lệnh hồng ngoại liên tiếp, tính bằng mili giây, mặc định 220. Tăng lên nếu kéo trên vòng điều hướng mà thiết bị bỏ sót bước, giảm xuống nếu thiết bị nhận tốt và bạn muốn nhanh hơn |
-| `availability_entity` | Không | Entity dùng để biết bộ phát IR còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
-| `custom` | Không | Bộ mã hồng ngoại tự khai báo, thay cho `device` và `model` (xem bên dưới) |
+| `device` | Yes | Device type: `fan`, `speaker`, `tv`, `appletv`, `climate`, `vacuum`, `camera` |
+| `model` | For `fan`, `speaker`, `tv` | Infrared remote model, see the table above. If left empty, the first model of that type is used |
+| `blaster` | For infrared devices | Name of the ESPHome node that sends IR, which is the middle part of `esphome.<blaster>_send_nec` |
+| `entity` | For `appletv`, `climate`, `vacuum`, `camera` | The device's entity. Optional for infrared devices: an entity that tells whether the device is on or off, for example the TV's `media_player` |
+| `name` | No | Display name, taken from the device by default |
+| `icon` | No | Display icon, taken from the device by default |
+| `color` | No | Icon color. Accepts a Home Assistant color name (`teal`, `purple`, `amber`...) or a CSS value (`"#5CC8BE"`). By default each type has its own color: fans teal, speakers and robot vacuums light purple, TVs and cameras blue, Apple TV pink, air conditioners sky blue |
+| `quick` | No | The quick buttons in the bottom row of the card, one or more. Infrared devices: a list of button ids, for example `[power, swing, timer]`. Air conditioners: a list of modes, for example `[cool, dry]`. Robot vacuums and cameras: a list of entity-based buttons (see below). If left empty, the device type's defaults are used |
+| `hide_quick` | No | `true` to hide the quick button row. The card is then as short as a Home Assistant tile (56px), so it lines up evenly next to light and switch tiles. Tapping the card still opens the full pop-up |
+| `badge_entity` | No | Entity shown in the status box in the right corner, for example a room temperature sensor or the robot's cleaning progress. Default: air conditioners show the target temperature, infrared devices show a remote icon |
+| `badge_icon` | No | Icon placed before the text in the status box, for example `mdi:progress-check`. For air conditioners the default is `mdi:thermometer` |
+| `ir_gap` | No | Minimum gap between two consecutive infrared commands, in milliseconds, default 220. Increase it if the device skips steps when you drag on the navigation ring; decrease it if the device receives well and you want it faster |
+| `availability_entity` | No | Entity used to know whether the IR blaster is still connected. By default the card watches every entity whose name contains `<blaster>_` |
+| `custom` | No | A self-declared infrared code set, used instead of `device` and `model` (see below) |
 
-## Cách dùng
+## Usage
 
-- Bấm **icon** của card: gửi lệnh nguồn (thiết bị hồng ngoại) hoặc bật tắt (điều hòa).
-- Bấm **các nút hàng dưới**: các lệnh hay dùng.
-- Bấm **phần còn lại** của card: mở pop-up điều khiển đầy đủ. Vuốt xuống để đóng.
-- Khi bộ phát IR hoặc thiết bị mất kết nối, card mờ đi và hiện "Unavailable".
+- Tap the card's **icon**: sends the power command (infrared devices) or toggles on/off (air conditioners).
+- Tap the **bottom-row buttons**: the commands you use most.
+- Tap the **rest** of the card: opens the full control pop-up. Swipe down to close it.
+- When the IR blaster or the device loses its connection, the card dims and shows "Unavailable".
 
-### Thiết bị hồng ngoại
+### Infrared devices
 
-Remote hồng ngoại chỉ gửi lệnh một chiều, nên mặc định card không biết thiết bị đang bật hay tắt, và hiện một icon remote ở góc phải để báo điều đó. Nếu thiết bị có một entity khác báo được trạng thái (TV có kết nối mạng, ổ cắm đo điện), khai báo nó ở `entity`: card sẽ đổi màu khi thiết bị bật.
+An infrared remote only sends commands one way, so by default the card does not know whether the device is on or off, and shows a remote icon in the right corner to indicate that. If the device has another entity that can report its state (a network-connected TV, a power-metering plug), declare it in `entity`: the card will change color when the device is on.
 
 ```yaml
 type: custom:aurora-device-control-card
@@ -108,7 +112,7 @@ quick: [power, mute, vol_down, vol_up]
 
 ### Apple TV
 
-Apple TV điều khiển qua mạng bằng tích hợp Apple TV của Home Assistant, không cần bộ phát IR:
+Apple TV is controlled over the network through Home Assistant's Apple TV integration; no IR blaster is needed:
 
 ```yaml
 type: custom:aurora-device-control-card
@@ -117,23 +121,23 @@ entity: media_player.appletv
 apps: [Netflix, YouTube, Spotify]
 ```
 
-- Bấm icon: bật hoặc cho ngủ.
-- Nút hàng dưới: mặc định là phát/dừng, quay lại, home. Chọn nút khác bằng `quick`.
-- Góc phải: icon cho biết đang phát hay tạm dừng.
-- Pop-up: một vòng tròn điều hướng ở giữa (bấm bốn hướng và OK, hoặc giữ tay kéo trên vòng tròn như bàn chạm: kéo tới đâu con trỏ đi từng ô tới đó, kéo ngược lại thì đi ngược lại), bên dưới là hai hàng nút: quay lại, phát/dừng, nút TV; rồi cặp tua 10 giây, cặp âm lượng và nút nguồn.
-- Khi đang phát hoặc tạm dừng, đầu pop-up hiện ảnh bìa, tên nội dung và ứng dụng.
-- **Ô gõ chữ:** tự hiện khi Apple TV mở chỗ nhập chữ (tìm kiếm, mật khẩu), bình thường ẩn đi. Gõ tới đâu chữ hiện trên Apple TV tới đó, nhấn Enter để chọn.
-- `apps`: các ứng dụng hiện thành một hàng nút cuộn ngang trong pop-up, bấm để mở. Tên lấy theo danh sách nguồn của `media_player`. Các ứng dụng phổ biến (YouTube, Netflix, Spotify, Plex...) có sẵn icon; đặt icon riêng bằng `apps: [{ name: Infuse, icon: mdi:play-box }]`.
+- Tap the icon: turn on or put to sleep.
+- Bottom-row buttons: play/pause, back and home by default. Choose other buttons with `quick`.
+- Right corner: an icon showing whether it is playing or paused.
+- Pop-up: a navigation ring in the middle (tap the four directions and OK, or hold and drag on the ring like a touchpad: the cursor moves one cell at a time as far as you drag, and moves back when you drag back), with two rows of buttons below it: back, play/pause and the TV button; then the 10-second skip pair, the volume pair and the power button.
+- While playing or paused, the top of the pop-up shows the cover art, the content title and the app.
+- **Text input box:** appears automatically when Apple TV opens a text entry field (search, password), and is hidden otherwise. The text appears on Apple TV as you type; press Enter to select.
+- `apps`: the apps shown as a horizontally scrolling row of buttons in the pop-up; tap one to open it. The names follow the `media_player` source list. Popular apps (YouTube, Netflix, Spotify, Plex...) have built-in icons; set your own icon with `apps: [{ name: Infuse, icon: mdi:play-box }]`.
 
-Card tự tìm entity remote và cảm biến bàn phím theo tên của `media_player` (`remote.<tên>`, `binary_sensor.<tên>_keyboard_focus`). Nếu tên khác, khai báo `remote_entity` và `keyboard_entity`.
+The card finds the remote entity and the keyboard sensor by itself from the `media_player` name (`remote.<name>`, `binary_sensor.<name>_keyboard_focus`). If the names differ, declare `remote_entity` and `keyboard_entity`.
 
-### TV hồng ngoại
+### Infrared TVs
 
-Pop-up của TV (Samsung, LG, Sony) dùng cùng bố cục với Apple TV: vòng tròn điều hướng ở giữa (bấm hoặc giữ tay kéo như bàn chạm), bên dưới là các phím cơ bản: quay lại, home, tắt tiếng, nguồn vào, âm lượng, chuyển kênh và nguồn. Phím số, MENU, GUIDE, EXIT, bốn phím màu và các phím phát nhạc nằm trong phần **"Phím số và phím khác"**, bấm để mở.
+The TV pop-up (Samsung, LG, Sony) uses the same layout as Apple TV: a navigation ring in the middle (tap, or hold and drag like a touchpad), with the basic keys below it: back, home, mute, input source, volume, channel and power. The number keys, MENU, GUIDE, EXIT, the four color keys and the media playback keys are in the **"Number keys and more"** section; tap it to expand.
 
-### Điều hòa
+### Air conditioners
 
-Điều hòa hồng ngoại trong ESPHome đã là một entity `climate` đầy đủ, nên card điều khiển thẳng entity đó, không cần `blaster`:
+An infrared air conditioner in ESPHome is already a full `climate` entity, so the card controls that entity directly, with no `blaster` needed:
 
 ```yaml
 type: custom:aurora-device-control-card
@@ -141,14 +145,14 @@ device: climate
 entity: climate.s06_ir_toshiba_ac
 ```
 
-- Bấm icon: bật hoặc tắt.
-- Nút hàng dưới: các chế độ điều hòa hỗ trợ (làm lạnh, hút ẩm, quạt...), chế độ đang chạy được tô màu.
-- Góc phải: nhiệt độ đang đặt.
-- Pop-up: card thermostat gốc của Home Assistant, có vòng chỉnh nhiệt độ, chọn chế độ, tốc độ quạt và đảo gió nếu điều hòa hỗ trợ.
+- Tap the icon: turn on or off.
+- Bottom-row buttons: the modes the air conditioner supports (cool, dry, fan...); the active mode is highlighted.
+- Right corner: the target temperature.
+- Pop-up: Home Assistant's native thermostat card, with the temperature dial, mode selection, fan speed and swing if the air conditioner supports them.
 
-### Robot hút bụi và camera
+### Robot vacuums and cameras
 
-Hai loại này theo dõi một entity, còn các nút do bạn khai báo bằng danh sách entity hoặc action.
+These two types watch one entity, while the buttons are declared by you as a list of entities or actions.
 
 ```yaml
 type: custom:aurora-device-control-card
@@ -158,8 +162,8 @@ name: Roborock
 badge_entity: sensor.roborock_cleaning_progress
 badge_icon: mdi:progress-check
 quick:
-  - { entity: button.roborock_clean_all, name: Dọn nhà }
-  - { entity: button.roborock_clean_living_room, name: Dọn PK }
+  - { entity: button.roborock_clean_all, name: Clean all }
+  - { entity: button.roborock_clean_living_room, name: Clean LR }
   - { icon: mdi:home-import-outline, service: vacuum.return_to_base }
 ```
 
@@ -167,47 +171,47 @@ quick:
 type: custom:aurora-device-control-card
 device: camera
 entity: camera.tapo_hd_stream
-privacy_entity: switch.tapo_privacy    # góc phải hiện Online / Riêng tư / Offline
+privacy_entity: switch.tapo_privacy    # right corner shows Online / Privacy / Offline
 quick:
-  - { entity: switch.tapo_privacy, name: Riêng tư, icon: mdi:eye-off }
-pad:                                   # vòng điều hướng trong pop-up, cho camera xoay được
+  - { entity: switch.tapo_privacy, name: Privacy, icon: mdi:eye-off }
+pad:                                   # navigation ring in the pop-up, for pan/tilt cameras
   up: button.tapo_move_up
   down: button.tapo_move_down
   left: button.tapo_move_left
   right: button.tapo_move_right
-columns: 4                             # số cột của lưới nút bên dưới
-controls:                              # lưới nút trong pop-up
-  - { entity: switch.tapo_privacy, name: RIÊNG TƯ, icon: mdi:eye-off, color: "#F2C879" }
-  - { entity: siren.tapo_siren, name: CÒI, icon: mdi:alarm-light, confirm: "Bật/tắt còi?" }
-  - { entity: select.tapo_night_vision, name: ĐÊM, icon: mdi:weather-night }
-  - { name: LỊCH SỬ, icon: mdi:history, path: /media-browser/browser, wide: true }
+columns: 4                             # number of columns in the button grid below
+controls:                              # button grid in the pop-up
+  - { entity: switch.tapo_privacy, name: PRIVACY, icon: mdi:eye-off, color: "#F2C879" }
+  - { entity: siren.tapo_siren, name: SIREN, icon: mdi:alarm-light, confirm: "Toggle the siren?" }
+  - { entity: select.tapo_night_vision, name: NIGHT, icon: mdi:weather-night }
+  - { name: HISTORY, icon: mdi:history, path: /media-browser/browser, wide: true }
 ```
 
-Mỗi nút trong `quick` và `controls` nhận:
+Each button in `quick` and `controls` accepts:
 
-| Trường | Mô tả |
+| Field | Description |
 |---|---|
-| `entity` | Entity của nút. Viết tắt được: chỉ ghi entity id thay cho cả khối |
-| `name` | Chữ hiển thị. Ở `quick`, bỏ trống thì lấy tên entity. Ở `controls`, bỏ trống thì nút chỉ có icon |
-| `icon` | Bỏ trống thì lấy icon của entity |
-| `color` | Màu khi entity đang bật |
-| `action` | `toggle`, `press`, `more-info` hoặc `navigate`. Mặc định theo loại entity: `button` thì bấm, `switch`/`light`/`siren`... thì bật tắt, còn lại mở hộp thoại của entity |
-| `service` | Gọi một action của Home Assistant thay cho bấm entity, ví dụ `vacuum.return_to_base`. Action chạy trên `entity` của nút, không có thì trên entity của card. Thêm tham số bằng `data` |
-| `path` | Đường dẫn để chuyển trang (tự hiểu là `navigate`) |
-| `confirm` | Câu hỏi xác nhận trước khi thực hiện |
-| `wide` | `true` để nút chiếm cả hàng |
+| `entity` | The button's entity. A shorthand is allowed: write just the entity id instead of the whole block |
+| `name` | Display text. In `quick`, if left empty the entity name is used. In `controls`, if left empty the button shows only an icon |
+| `icon` | If left empty, the entity's icon is used |
+| `color` | Color when the entity is on |
+| `action` | `toggle`, `press`, `more-info` or `navigate`. The default depends on the entity type: a `button` is pressed, `switch`/`light`/`siren`... are toggled, and anything else opens the entity's dialog |
+| `service` | Calls a Home Assistant action instead of pressing the entity, for example `vacuum.return_to_base`. The action runs on the button's `entity`, or on the card's entity if there is none. Add parameters with `data` |
+| `path` | Path to navigate to (implies `navigate`) |
+| `confirm` | Confirmation question asked before the action runs |
+| `wide` | `true` to make the button span the whole row |
 
-- **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Khi chưa khai báo `quick`, card có sẵn một nút dừng dọn và quay về dock. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
-- **Camera:** pop-up hiện hình trực tiếp có tiếng, kèm thanh điều khiển của trình phát. Đặt `audio: false` nếu muốn hình không tiếng. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `pad` khai báo bốn nút hướng (`up`, `down`, `left`, `right`, thêm `center` nếu muốn có nút ở tâm), hiện thành vòng tròn điều hướng giống remote TV. `columns` đổi số cột của lưới nút, mặc định 3.
+- **Robot vacuums:** the card changes color when the robot is cleaning, returning to the dock or paused. When `quick` is not declared, the card has a built-in button that stops cleaning and returns to the dock. If `controls` is not declared, tapping the card opens Home Assistant's native dialog.
+- **Cameras:** the pop-up shows the live video with sound, along with the player's control bar. Set `audio: false` if you want video without sound. When the camera loses its connection, the card gets a red border and the pop-up shows an offline notice box (change its text with `offline_text`). `pad` declares the four direction buttons (`up`, `down`, `left`, `right`, plus `center` if you want a button in the middle), shown as a navigation ring like a TV remote. `columns` changes the number of columns in the button grid, default 3.
 
-## Action cần có trên bộ phát ESPHome
+## Actions required on the ESPHome blaster
 
-Với thiết bị hồng ngoại, card gọi `esphome.<blaster>_send_<giao thức>`. Khai báo các action tương ứng trong YAML của bộ phát:
+For infrared devices, the card calls `esphome.<blaster>_send_<protocol>`. Declare the matching actions in the blaster's YAML:
 
 ```yaml
 api:
   actions:
-    # Dung cho: quat HSV, quat Toshiba, TV LG
+    # Used by: HSV fan, Toshiba fan, LG TV
     - action: send_nec
       variables:
         address: int
@@ -219,7 +223,7 @@ api:
             command: !lambda 'return (uint16_t) command;'
             command_repeats: !lambda 'return (uint8_t) repeats;'
 
-    # Dung cho: TV Samsung, loa LG
+    # Used by: Samsung TV, LG speaker
     - action: send_samsung
       variables:
         address: int
@@ -229,7 +233,7 @@ api:
             data: !lambda 'return ((uint32_t) address << 16) | ((uint32_t) command & 0xFFFF);'
             nbits: 32
 
-    # Dung cho: TV Sony (Sony yeu cau gui lap lai 3 lan)
+    # Used by: Sony TV (Sony requires the code to be sent 3 times)
     - action: send_sony
       variables:
         data: int
@@ -242,7 +246,7 @@ api:
               times: 3
               wait_time: 45ms
 
-    # Dung cho: TV TCL, TV Panasonic, quat Senko, quat Mitsubishi, va nut khai bao bang "pronto"
+    # Used by: TCL TV, Panasonic TV, Senko fan, Mitsubishi fan, and buttons declared with "pronto"
     - action: send_pronto
       variables:
         data: string
@@ -251,22 +255,22 @@ api:
             data: !lambda 'return data;'
 ```
 
-## Thêm remote hồng ngoại của riêng bạn
+## Adding your own infrared remote
 
-Khai báo bộ mã ngay trong card bằng `custom`:
+Declare the code set right in the card with `custom`:
 
 ```yaml
 type: custom:aurora-device-control-card
 blaster: ten_node_esphome
 custom:
-  name: Quạt của tôi
+  name: My fan
   icon: mdi:fan
   color: "#5CC8BE"
-  protocol: nec        # phần đuôi của action esphome.<blaster>_send_<protocol>
-  address: 65025       # địa chỉ mặc định cho mọi nút
-  repeats: 2           # bỏ dòng này nếu action không nhận repeats
+  protocol: nec        # the suffix of the action esphome.<blaster>_send_<protocol>
+  address: 65025       # default address for every button
+  repeats: 2           # remove this line if the action does not accept repeats
   button_height: 54
-  power: power         # id nút gửi khi bấm icon
+  power: power         # id of the button sent when the icon is tapped
   quick: [swing, down, up]
   buttons:
     - { id: down, icon: mdi:fan-minus, command: 46155 }
@@ -275,17 +279,17 @@ custom:
     - { id: swing, icon: mdi:arrow-oscillating, label: SWING, command: 60435 }
 ```
 
-Nút có `label` hiện icon nhỏ kèm chữ, nút không có `label` chỉ hiện icon to. `{ spacer: true }` tạo một ô trống. Từng nút có thể ghi đè `address`, `protocol`, `repeats`.
+A button with a `label` shows a small icon with text; a button without a `label` shows only a large icon. `{ spacer: true }` creates an empty cell. Each button can override `address`, `protocol` and `repeats`.
 
-Nút có mã dạng chuỗi Pronto thì khai báo `pronto: "0000 006D ..."` thay cho `command`; nút đó luôn gửi qua action `send_pronto`.
+A button whose code is a Pronto string declares `pronto: "0000 006D ..."` instead of `command`; that button is always sent through the `send_pronto` action.
 
-Với giao thức gửi dạng `data` + `nbits` (ví dụ Sony), mỗi nút khai báo `data` thay cho `command`, và đặt `nbits` ở mức chung hoặc từng nút. Thay `buttons` bằng `groups` nếu cần nhiều lưới có số cột khác nhau: `groups: [{ columns: 4, buttons: [...] }]`.
+For protocols that send `data` + `nbits` (for example Sony), each button declares `data` instead of `command`, and `nbits` is set at the common level or per button. Replace `buttons` with `groups` if you need several grids with different column counts: `groups: [{ columns: 4, buttons: [...] }]`.
 
-## Dự án liên quan
+## Related projects
 
-- [Aurora Home Theme](https://github.com/lipnguyen-ha/ha-aurora-home-theme): theme nền gradient, thẻ kính mờ cho Home Assistant. Card này lấy màu nền và bo góc theo theme đang dùng.
-- [WOL + Presence](https://github.com/lipnguyen-ha/ha-wol-presence): integration bật máy tính bằng Wake-on-LAN và báo máy đang thức hay ngủ, dùng được cho cả Mac.
+- [Aurora Home Theme](https://github.com/lipnguyen-ha/ha-aurora-home-theme): a theme with a gradient background and frosted-glass cards for Home Assistant. This card takes its background color and corner radius from the active theme.
+- [WOL + Presence](https://github.com/lipnguyen-ha/ha-wol-presence): an integration that turns on a computer with Wake-on-LAN and reports whether the machine is awake or asleep; it works with Macs too.
 
-## Giấy phép
+## License
 
 MIT.
