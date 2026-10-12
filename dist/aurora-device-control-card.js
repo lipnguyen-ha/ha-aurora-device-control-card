@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.3";
+const VERSION = "1.0.4";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -601,6 +601,12 @@ const POPUP_CSS = `
     --mdc-icon-size: 22px;
   }
   .embedded { margin-bottom: 8px; }
+  .embedded.stream ha-camera-stream {
+    display: block;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+  }
   .offline-box {
     height: 180px;
     margin-bottom: 8px;
@@ -777,7 +783,10 @@ class IrRemoteCard extends HTMLElement {
     this._hass = hass;
     this._update();
     this._updateControls();
-    for (const card of this._embedded) card.hass = hass;
+    for (const card of this._embedded) {
+      card.hass = hass;
+      if (card.localName === "ha-camera-stream") card.stateObj = this._stateObj;
+    }
   }
 
   getCardSize() {
@@ -1170,6 +1179,46 @@ class IrRemoteCard extends HTMLElement {
     return holder;
   }
 
+  // Hinh truc tiep cua camera, co tieng. Card picture-entity cua HA luon tat tieng,
+  // nen dung thang bo phat ha-camera-stream; "audio: false" thi quay ve card picture-entity.
+  _embedCamera() {
+    const pictureConfig = {
+      type: "picture-entity",
+      entity: this._config.entity,
+      camera_view: "live",
+      show_name: false,
+      show_state: false,
+      tap_action: { action: "none" },
+      hold_action: { action: "none" },
+    };
+    if (this._config.audio === false || !window.loadCardHelpers) return this._embedCard(pictureConfig);
+
+    const holder = el("div", { class: "embedded stream" });
+    window
+      .loadCardHelpers()
+      .then(async (helpers) => {
+        // Tao card picture-entity de HA nap module chua ha-camera-stream; cung la phuong an du phong
+        const fallback = helpers.createCardElement(pictureConfig);
+        await Promise.race([
+          customElements.whenDefined("ha-camera-stream"),
+          new Promise((resolve) => setTimeout(resolve, 4000)),
+        ]);
+        if (!this._popup) return;
+        let node = fallback;
+        if (customElements.get("ha-camera-stream")) {
+          node = document.createElement("ha-camera-stream");
+          node.controls = true;
+          node.muted = false;
+          node.stateObj = this._stateObj;
+        }
+        node.hass = this._hass;
+        this._embedded.push(node);
+        holder.appendChild(node);
+      })
+      .catch((err) => this._notifyError(err));
+    return holder;
+  }
+
   // Noi dung pop-up cua dieu hoa: card thermostat goc cua HA
   _buildClimateBody() {
     const stateObj = this._stateObj;
@@ -1192,17 +1241,7 @@ class IrRemoteCard extends HTMLElement {
           ])
         );
       } else {
-        body.push(
-          this._embedCard({
-            type: "picture-entity",
-            entity: this._config.entity,
-            camera_view: "live",
-            show_name: false,
-            show_state: false,
-            tap_action: { action: "none" },
-            hold_action: { action: "none" },
-          })
-        );
+        body.push(this._embedCamera());
       }
     }
     if (this._controls.length) {

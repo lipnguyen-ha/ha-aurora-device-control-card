@@ -155,7 +155,7 @@ Mỗi nút trong `quick` và `controls` nhận:
 | `wide` | `true` để nút chiếm cả hàng |
 
 - **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Khi chưa khai báo `quick`, card có sẵn một nút dừng dọn và quay về dock. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
-- **Camera:** pop-up hiện hình trực tiếp. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `columns` đổi số cột của lưới nút, mặc định 3.
+- **Camera:** pop-up hiện hình trực tiếp có tiếng, kèm thanh điều khiển của trình phát. Đặt `audio: false` nếu muốn hình không tiếng. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `columns` đổi số cột của lưới nút, mặc định 3.
 
 ## Action cần có trên bộ phát ESPHome
 
