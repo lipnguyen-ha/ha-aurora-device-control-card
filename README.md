@@ -44,6 +44,8 @@ Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **IR Remo
 | `icon` | Không | Icon hiển thị, mặc định lấy theo bộ mã |
 | `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại thiết bị một màu: quạt xanh ngọc, loa tím nhạt, TV xanh dương, điều hòa xanh da trời |
 | `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Remote IR: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Robot hút bụi và camera: danh sách entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
+| `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, remote IR hiện icon remote |
+| `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:thermometer` |
 | `availability_entity` | Không | Entity dùng để biết bộ phát còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
 | `custom` | Không | Bộ mã tự khai báo, thay cho `remote` (xem bên dưới) |
 

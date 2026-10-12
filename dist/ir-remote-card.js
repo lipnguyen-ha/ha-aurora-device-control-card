@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.6.0";
+const VERSION = "0.7.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -409,7 +409,10 @@ const CARD_CSS = `
     font-weight: 500;
     white-space: nowrap;
   }
-  .badge.show-text ha-icon, .badge.show-icon .text { display: none; }
+  .badge.show-text ha-icon.remote, .badge.show-icon .text { display: none; }
+  /* Icon tuy chon dung truoc chu trang thai (badge_icon) */
+  .badge ha-icon.extra { display: none; margin-right: 5px; --mdc-icon-size: 16px; }
+  .badge.show-text.has-icon ha-icon.extra { display: inline-flex; }
   /* Trang thai dang chu mau, khong co nen (camera: Online / Offline) */
   ha-card .badge.plain {
     padding: 0 6px;
@@ -784,7 +787,11 @@ class IrRemoteCard extends HTMLElement {
     });
 
     this._nameEl = el("div", { class: "name", text: this._name });
-    this._badge = el("div", { class: "badge" }, [icon("mdi:remote"), el("span", { class: "text" })]);
+    this._badge = el("div", { class: "badge" }, [
+      el("ha-icon", { icon: "mdi:remote", class: "remote" }),
+      el("ha-icon", { class: "extra" }),
+      el("span", { class: "text" }),
+    ]);
     const top = el("div", { class: "top" }, [iconButton, this._nameEl, this._badge]);
     top.addEventListener("click", () => this._openMain());
 
@@ -887,8 +894,8 @@ class IrRemoteCard extends HTMLElement {
     this._card.classList.toggle("on", on);
     this._nameEl.textContent = this._name;
 
-    // Goc phai: "Unavailable" khi mat ket noi, nhiet do dat cua dieu hoa, trang thai camera,
-    // gia tri cua badge_entity, hoac icon remote
+    // Goc phai: "Unavailable" khi mat ket noi, trang thai camera, gia tri cua badge_entity,
+    // nhiet do dat cua dieu hoa, hoac icon remote. badge_icon them mot icon truoc chu.
     const states = (this._hass && this._hass.states) || {};
     let text = "";
     let color = "";
@@ -899,14 +906,17 @@ class IrRemoteCard extends HTMLElement {
       else [text, color] = ["● Online", "#81c995"];
     } else if (offline) {
       text = (this._hass && this._hass.localize("state.default.unavailable")) || "Unavailable";
-    } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
-      text = `${stateObj.attributes.temperature} °C`;
     } else if (states[this._config.badge_entity]) {
       const badge = states[this._config.badge_entity];
       text = this._hass.formatEntityState
         ? this._hass.formatEntityState(badge)
         : `${badge.state} ${badge.attributes.unit_of_measurement || ""}`.trim();
+    } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
+      text = `${stateObj.attributes.temperature} °C`;
     }
+    const badgeIcon = !offline && !live ? this._config.badge_icon : "";
+    this._badge.querySelector(".extra").setAttribute("icon", badgeIcon || "");
+    this._badge.classList.toggle("has-icon", !!badgeIcon);
     this._badge.querySelector(".text").textContent = text;
     this._badge.style.color = color;
     this._badge.classList.toggle("plain", live);
@@ -1278,6 +1288,8 @@ const EDITOR_LABELS = {
   icon: "Icon (để trống = icon mặc định)",
   color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
   availability_entity: "Entity báo mất kết nối (để trống = tự động)",
+  badge_entity: "Ô trạng thái góc phải: entity hiển thị (để trống = mặc định)",
+  badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = không có)",
   quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
   quick_entities: "Nút nhanh trên card",
   controls: "Nút trong pop-up",
@@ -1345,6 +1357,10 @@ class IrRemoteCardEditor extends HTMLElement {
       { name: "color", selector: { ui_color: {} } }
     );
     if (!def.kind) schema.push({ name: "availability_entity", selector: { entity: {} } });
+    // Camera dung o goc phai cho Online / Offline nen khong co tuy chon nay
+    if (!def.live) {
+      schema.push({ name: "badge_entity", selector: { entity: {} } }, { name: "badge_icon", selector: { icon: {} } });
+    }
 
     // Nut nhanh: chon tu cac chuc nang cua loai thiet bi
     if (def.kind === "entity") {
@@ -1405,7 +1421,7 @@ class IrRemoteCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { ...ev.detail.value };
         // Bo cac o de trong de YAML gon va card dung gia tri mac dinh
-        for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster"]) {
+        for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster", "badge_entity", "badge_icon"]) {
           if (config[key] === "" || config[key] == null) delete config[key];
         }
         const def = resolveRemote(config) || {};
