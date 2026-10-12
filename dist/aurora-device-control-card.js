@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.1.2";
+const VERSION = "1.1.3";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -520,6 +520,8 @@ const CARD_CSS = `
   /* Icon tuy chon dung truoc chu trang thai (badge_icon) */
   .badge ha-icon.extra { display: none; margin-right: 4px; --mdc-icon-size: 14px; }
   .badge.show-text.has-icon ha-icon.extra { display: inline-flex; }
+  .badge.icon-only { padding: 0 8px; }
+  .badge.icon-only ha-icon.extra { margin-right: 0; }
   /* Trang thai dang chu mau, khong co nen (camera: Online / Offline) */
   ha-card .badge.plain {
     padding: 0 6px;
@@ -1136,17 +1138,21 @@ class IrRemoteCard extends HTMLElement {
         : `${badge.state} ${badge.attributes.unit_of_measurement || ""}`.trim();
     } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
       text = `${stateObj.attributes.temperature} °C`;
-    } else if (this._def.kind === "media" && on && stateObj) {
-      // Dang phat gi, hoac dang mo ung dung nao
-      text = stateObj.attributes.media_title || stateObj.attributes.app_name || "";
     }
-    const badgeIcon = !offline && !live && text ? this._config.badge_icon || this._def.badge_icon : "";
+    // Thiet bi phat nhac / phim: chi hien mot icon cho biet dang phat hay tam dung (ten noi dung qua dai)
+    let stateIcon = "";
+    if (!text && this._def.kind === "media" && on && stateObj) {
+      stateIcon = { playing: "mdi:play", buffering: "mdi:play", paused: "mdi:pause" }[stateObj.state] || "";
+    }
+    const badgeIcon =
+      stateIcon || (!offline && !live && text ? this._config.badge_icon || this._def.badge_icon : "");
     this._badge.querySelector(".extra").setAttribute("icon", badgeIcon || "");
     this._badge.classList.toggle("has-icon", !!badgeIcon);
     this._badge.querySelector(".text").textContent = text;
     this._badge.style.color = color;
     this._badge.classList.toggle("plain", live);
-    this._badge.classList.toggle("show-text", !!text);
+    this._badge.classList.toggle("icon-only", !!stateIcon);
+    this._badge.classList.toggle("show-text", !!text || !!stateIcon);
     this._badge.classList.toggle("show-icon", !text && !this._config.entity);
 
     this._renderQuick();

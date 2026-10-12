@@ -107,7 +107,7 @@ apps: [Netflix, YouTube, Spotify]
 
 - Bấm icon: bật hoặc cho ngủ.
 - Nút hàng dưới: mặc định là phát/dừng, quay lại, home. Chọn nút khác bằng `quick`.
-- Góc phải: nội dung đang phát hoặc ứng dụng đang mở.
+- Góc phải: icon cho biết đang phát hay tạm dừng.
 - Pop-up: cụm điều hướng, quay lại, nút TV, phát/dừng, tua 10 giây, âm lượng.
 - **Ô gõ chữ:** gõ tới đâu chữ hiện trên Apple TV tới đó, nhấn Enter để chọn. Ô này mờ đi khi Apple TV chưa mở chỗ nhập chữ (tìm kiếm, mật khẩu).
 - `apps`: các ứng dụng hiện thành nút trong pop-up, bấm để mở. Tên lấy theo danh sách nguồn của `media_player`. Các ứng dụng phổ biến (YouTube, Netflix, Spotify, Plex...) có sẵn icon; đặt icon riêng bằng `apps: [{ name: Infuse, icon: mdi:play-box }]`.
