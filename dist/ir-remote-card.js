@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.3.1";
+const VERSION = "0.3.2";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -273,6 +273,7 @@ const REMOTES = {
 
 const OFFLINE_STATES = ["unavailable", "unknown"];
 const OFF_STATES = ["off", "standby", "idle", "unavailable", "unknown"];
+// Thu tu cung la thu tu uu tien khi chon 3 nut nhanh cua dieu hoa
 const HVAC_ICONS = {
   cool: "mdi:snowflake",
   dry: "mdi:water-percent",
@@ -667,9 +668,8 @@ class IrRemoteCard extends HTMLElement {
       return (this._def.quick || []).map((id) => this._byId[id]).filter(Boolean);
     }
     const stateObj = this._stateObj;
-    const modes = ((stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"]).filter(
-      (mode) => mode !== "off" && HVAC_ICONS[mode]
-    );
+    const supported = (stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"];
+    const modes = Object.keys(HVAC_ICONS).filter((mode) => supported.includes(mode));
     return modes.slice(0, 3).map((mode) => ({
       id: mode,
       icon: HVAC_ICONS[mode],
@@ -881,7 +881,10 @@ class IrRemoteCard extends HTMLElement {
 
     root.append(el("style", { text: POPUP_CSS }), backdrop, sheet);
     this._bindSheetGestures(host, sheet);
-    document.body.appendChild(host);
+    // Gan vao trong <home-assistant> chu khong phai document.body: cac card goc cua HA
+    // (vd. thermostat) lay hass qua context cua phan tu nay, o ngoai thi chung hien trong.
+    const app = document.querySelector("home-assistant");
+    ((app && app.shadowRoot) || document.body).appendChild(host);
 
     this._prevOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
