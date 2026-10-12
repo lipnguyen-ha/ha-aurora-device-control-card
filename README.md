@@ -42,6 +42,7 @@ Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **IR Remo
 | `entity` | Chỉ với `climate` | Entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV. Với `remote: climate` đây là entity điều hòa |
 | `name` | Không | Tên hiển thị, mặc định lấy theo bộ mã |
 | `icon` | Không | Icon hiển thị, mặc định lấy theo bộ mã |
+| `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại thiết bị một màu: quạt xanh ngọc, loa tím nhạt, TV xanh dương, điều hòa xanh da trời |
 | `availability_entity` | Không | Entity dùng để biết bộ phát còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
 | `custom` | Không | Bộ mã tự khai báo, thay cho `remote` (xem bên dưới) |
 

@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.3.2";
+const VERSION = "0.4.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -83,7 +83,7 @@ const mapValues = (obj, fn) => Object.fromEntries(Object.entries(obj).map(([k, v
 // Bo ma IR. Them thiet bi moi = them mot muc o day.
 //   protocol: phan duoi cua action ESPHome (nec, samsung, sony, ...)
 //   address/repeats/nbits: mac dinh cho moi nut, tung nut co the ghi de
-//   color: mau nhan khi card co entity trang thai va dang BAT
+//   color: mau icon mac dinh cua loai thiet bi (nguoi dung ghi de bang tuy chon "color" cua card)
 //   power: id nut duoc gui khi bam vao icon cua card
 //   quick: 3 id nut hien o hang duoi cua card
 //   buttons: luoi 3 cot trong pop-up; hoac groups: nhieu luoi, moi luoi co so cot rieng.
@@ -93,6 +93,7 @@ const REMOTES = {
   hsv_fan: {
     name: "HSV Fan",
     icon: "mdi:ceiling-fan-light",
+    color: "#5CC8BE",
     protocol: "nec",
     address: 23175,
     repeats: 1,
@@ -124,6 +125,7 @@ const REMOTES = {
   toshiba_fan: {
     name: "Toshiba Fan",
     icon: "mdi:fan",
+    color: "#5CC8BE",
     protocol: "nec",
     address: 65025,
     repeats: 2,
@@ -143,6 +145,7 @@ const REMOTES = {
   lg_soundbar: {
     name: "LG Soundbar",
     icon: "mdi:speaker",
+    color: "#B394E8",
     protocol: "samsung",
     address: 13364,
     button_height: 54,
@@ -174,7 +177,7 @@ const REMOTES = {
   samsung_tv: {
     name: "Samsung TV",
     icon: "mdi:television",
-    color: "#3E9BF0",
+    color: "#6AA9F0",
     protocol: "samsung",
     address: 57568,
     button_height: 54,
@@ -202,7 +205,7 @@ const REMOTES = {
   lg_tv: {
     name: "LG TV",
     icon: "mdi:television",
-    color: "#3E9BF0",
+    color: "#6AA9F0",
     protocol: "nec",
     address: nec(0x04),
     repeats: 1,
@@ -232,7 +235,7 @@ const REMOTES = {
   sony_tv: {
     name: "Sony TV",
     icon: "mdi:television",
-    color: "#3E9BF0",
+    color: "#6AA9F0",
     protocol: "sony",
     nbits: 12,
     button_height: 54,
@@ -266,10 +269,18 @@ const REMOTES = {
     kind: "climate",
     name: "Điều hòa",
     icon: "mdi:air-conditioner",
-    color: "#35B8E8",
+    color: "#5CC4EA",
     button_height: 54,
   },
 };
+
+// Ten mau cua Home Assistant (o chon mau trong form tra ve ten, vd. "teal") -> gia tri CSS.
+// Gia tri khac (#hex, rgb(), var()) duoc dung nguyen.
+function cssColor(value) {
+  if (!value) return undefined;
+  if (value === "primary" || value === "accent") return `var(--${value}-color)`;
+  return /^[a-z]+(-[a-z]+)*$/.test(value) ? `var(--${value}-color)` : value;
+}
 
 const OFFLINE_STATES = ["unavailable", "unknown"];
 const OFF_STATES = ["off", "standby", "idle", "unavailable", "unknown"];
@@ -323,12 +334,11 @@ const CARD_CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--card-off-icon-background-color, rgba(144, 164, 174, 0.18));
-    color: color-mix(in srgb, var(--ir-accent) var(--card-off-icon-mix, 0%), #90a4ae);
+    background: var(--card-off-icon-background-color, color-mix(in srgb, var(--ir-accent) 18%, transparent));
+    color: var(--ir-accent);
     cursor: pointer;
     --mdc-icon-size: 24px;
   }
-  ha-card.stateless .icon { background: rgba(144, 164, 174, 0.18); color: #90a4ae; }
   ha-card.on .icon {
     background: color-mix(in srgb, var(--ir-accent) var(--card-on-icon-background-mix, 25%), transparent);
     color: var(--card-on-icon-color, var(--ir-accent));
@@ -463,8 +473,8 @@ const POPUP_CSS = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(144, 164, 174, 0.18);
-    color: #90a4ae;
+    background: color-mix(in srgb, var(--ir-accent, #90a4ae) 18%, transparent);
+    color: var(--ir-accent, #90a4ae);
     --mdc-icon-size: 24px;
   }
   .header .name {
@@ -642,6 +652,10 @@ class IrRemoteCard extends HTMLElement {
     return this._config.icon || this._def.icon;
   }
 
+  get _color() {
+    return cssColor(this._config.color) || this._def.color || "#90a4ae";
+  }
+
   _render() {
     const iconButton = el("button", { class: "icon" }, [icon(this._icon)]);
     iconButton.addEventListener("click", (ev) => {
@@ -657,7 +671,7 @@ class IrRemoteCard extends HTMLElement {
 
     this._quick = el("div", { class: "quick" });
     this._card = el("ha-card", {}, [top, this._quick]);
-    this._card.style.setProperty("--ir-accent", this._def.color || "#90a4ae");
+    this._card.style.setProperty("--ir-accent", this._color);
     this._card.classList.toggle("stateless", !this._config.entity);
     this.shadowRoot.replaceChildren(el("style", { text: CARD_CSS }), this._card);
   }
@@ -859,6 +873,7 @@ class IrRemoteCard extends HTMLElement {
   _openPopup() {
     if (this._popup) return;
     const host = document.createElement("div");
+    host.style.setProperty("--ir-accent", this._color);
     const root = host.attachShadow({ mode: "open" });
     this._popup = host;
 
@@ -991,6 +1006,7 @@ const EDITOR_LABELS = {
   climate_entity: "Entity điều hòa (climate)",
   name: "Tên hiển thị (để trống = tên mặc định)",
   icon: "Icon (để trống = icon mặc định)",
+  color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
   availability_entity: "Entity báo mất kết nối (để trống = tự động)",
 };
 
@@ -1035,7 +1051,11 @@ class IrRemoteCardEditor extends HTMLElement {
         { name: "entity", selector: { entity: {} } }
       );
     }
-    schema.push({ name: "name", selector: { text: {} } }, { name: "icon", selector: { icon: {} } });
+    schema.push(
+      { name: "name", selector: { text: {} } },
+      { name: "icon", selector: { icon: {} } },
+      { name: "color", selector: { ui_color: {} } }
+    );
     if (def.kind !== "climate") schema.push({ name: "availability_entity", selector: { entity: {} } });
     return schema;
   }
@@ -1049,7 +1069,7 @@ class IrRemoteCardEditor extends HTMLElement {
         ev.stopPropagation();
         const config = { ...ev.detail.value };
         // Bo cac o de trong de YAML gon va card dung gia tri mac dinh
-        for (const key of ["entity", "name", "icon", "availability_entity", "blaster"]) {
+        for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster"]) {
           if (config[key] === "" || config[key] == null) delete config[key];
         }
         this._config = config;
