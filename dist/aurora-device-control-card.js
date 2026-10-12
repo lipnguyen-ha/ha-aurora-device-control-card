@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.3.2";
+const VERSION = "1.3.3";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -778,19 +778,17 @@ const POPUP_CSS = `
     font-weight: 600;
     letter-spacing: 0.5px;
   }
-  /* Cac nut tron duoi vong dieu huong */
-  .round-row {
+  /* Cac nut duoi vong dieu huong: can deu hai mep pop-up, cung be rong voi cac phan khac */
+  .btn-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 8px;
   }
-  .round-row button {
-    flex: none;
-    border: 1px solid rgba(127, 127, 127, 0.22);
+  .btn-row button {
+    border: none;
     padding: 0;
-    border-radius: 50%;
-    background: rgba(127, 127, 127, 0.16);
+    background: none;
     color: var(--primary-text-color);
     display: flex;
     align-items: center;
@@ -799,31 +797,35 @@ const POPUP_CSS = `
     transition: transform 0.1s, filter 0.1s;
     -webkit-tap-highlight-color: transparent;
   }
-  .keyboard input {
+  /* Nut lon chia deu chieu ngang */
+  .btn-row > button {
     flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: none;
-    color: var(--primary-text-color);
-    font-family: inherit;
-    font-size: 16px;
+    height: 56px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 18px;
+    background: rgba(127, 127, 127, 0.16);
+    --mdc-icon-size: 26px;
   }
-  .keyboard input::placeholder { color: var(--secondary-text-color); font-size: 13px; }
-  .keyboard button {
-    flex: none;
-    width: 34px;
-    height: 34px;
-    border: none;
-    padding: 0;
-    border-radius: 50%;
-    background: rgba(127, 127, 127, 0.2);
-    color: var(--primary-text-color);
+  /* Cap nut ghep: hai nut lien quan nam chung mot vien thuoc (tua lui / toi, giam / tang am) */
+  .btn-row .pair {
+    flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+    height: 48px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 24px;
+    background: rgba(127, 127, 127, 0.16);
+    overflow: hidden;
   }
+  .btn-row .pair button { flex: 1; --mdc-icon-size: 22px; }
+  .btn-row .pair button + button { border-left: 1px solid rgba(127, 127, 127, 0.22); }
+  .btn-row > button.round {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    --mdc-icon-size: 22px;
+  }
+  .btn-row.last { margin-bottom: 16px; }
   .apps {
     display: flex;
     gap: 8px;
@@ -1480,32 +1482,35 @@ class IrRemoteCard extends HTMLElement {
     return zone;
   }
 
-  // Mot hang nut tron lay tu cac nut cua remote
-  _buildRoundRow(ids, size, gap) {
-    const row = el("div", { class: "round-row" });
-    row.style.gap = `${gap}px`;
-    for (const id of ids) {
-      const btn = this._byId[id];
-      if (!btn) continue;
-      const btnIcon = icon(btn.icon);
-      btnIcon.style.setProperty("--mdc-icon-size", `${Math.round(size * 0.46)}px`);
-      if (btn.color) btnIcon.style.color = btn.color;
-      const node = el("button", { title: btn.label || id }, [btnIcon]);
-      node.style.width = node.style.height = `${size}px`;
-      node.addEventListener("click", () => this._press(btn));
-      row.appendChild(node);
-    }
-    return row;
+  // Mot nut lay tu bo nut cua remote, dung cho cac hang duoi vong dieu huong
+  _padButton(id, className = "") {
+    const btn = this._byId[id];
+    const btnIcon = icon(btn.icon);
+    if (btn.color) btnIcon.style.color = btn.color;
+    const node = el("button", { title: btn.label || id, class: className }, [btnIcon]);
+    node.addEventListener("click", () => this._press(btn));
+    return node;
+  }
+
+  // Hai hang nut duoi vong dieu huong:
+  //   [ quay lai ] [ phat/dung ] [ TV ]             ba nut lon chia deu
+  //   [ lui 10 | toi 10 ] [ giam am | tang am ] (nguon)
+  _buildPadButtons() {
+    const pair = (ids) => el("div", { class: "pair" }, ids.map((id) => this._padButton(id)));
+    return [
+      el("div", { class: "btn-row" }, ["menu", "play_pause", "home"].map((id) => this._padButton(id))),
+      el("div", { class: "btn-row last" }, [
+        pair(["skip_backward", "skip_forward"]),
+        pair(["volume_down", "volume_up"]),
+        this._padButton("power", "round"),
+      ]),
+    ];
   }
 
   _buildPadBody() {
     const body = [this._buildNowPlaying()];
     if (this._def.keyboard) body.push(this._buildKeyboard());
-    body.push(
-      this._buildPad(),
-      this._buildRoundRow(["menu", "play_pause", "home"], 58, 30),
-      this._buildRoundRow(["skip_backward", "skip_forward", "volume_down", "volume_up", "power"], 46, 14)
-    );
+    body.push(this._buildPad(), ...this._buildPadButtons());
     return body;
   }
 
