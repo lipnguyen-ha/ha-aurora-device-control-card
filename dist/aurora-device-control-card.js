@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -1422,15 +1422,7 @@ class IrRemoteCard extends HTMLElement {
     pad.appendChild(ok);
 
     // Chan su kien cham lan len sheet, de vuot xuong tren vong tron khong dong pop-up
-    let start = null;
-    pad.addEventListener(
-      "touchstart",
-      (ev) => {
-        ev.stopPropagation();
-        start = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-      },
-      { passive: true }
-    );
+    pad.addEventListener("touchstart", (ev) => ev.stopPropagation(), { passive: true });
     pad.addEventListener(
       "touchmove",
       (ev) => {
@@ -1439,18 +1431,43 @@ class IrRemoteCard extends HTMLElement {
       },
       { passive: false }
     );
-    pad.addEventListener("touchend", (ev) => {
-      ev.stopPropagation();
-      if (!start) return;
-      const touch = ev.changedTouches[0];
-      const dx = touch.clientX - start.x;
-      const dy = touch.clientY - start.y;
-      start = null;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
-      swipedAt = Date.now();
-      const id = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
-      this._press(this._byId[id]);
+    pad.addEventListener("touchend", (ev) => ev.stopPropagation());
+
+    // Keo nhu ban cham: cu keo them STEP px thi gui them mot lenh huong, keo nguoc lai thi di nguoc lai.
+    // Diem neo doi dung mot buoc moi lan (khong nhay ve vi tri ngon tay) de quang du duoc cong don.
+    // Khong dung setPointerCapture: bat con tro ve pad se lam su kien click khong toi duoc nut con.
+    const STEP = 36;
+    let anchor = null;
+    let moved = false;
+    pad.addEventListener("pointerdown", (ev) => {
+      anchor = { x: ev.clientX, y: ev.clientY };
+      moved = false;
     });
+    pad.addEventListener("pointermove", (ev) => {
+      if (!anchor) return;
+      for (let i = 0; i < 4; i++) {
+        const dx = ev.clientX - anchor.x;
+        const dy = ev.clientY - anchor.y;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < STEP) break;
+        let id;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          id = dx > 0 ? "right" : "left";
+          anchor.x += Math.sign(dx) * STEP;
+        } else {
+          id = dy > 0 ? "down" : "up";
+          anchor.y += Math.sign(dy) * STEP;
+        }
+        moved = true;
+        this._press(this._byId[id]);
+      }
+    });
+    const release = () => {
+      if (moved) swipedAt = Date.now();
+      anchor = null;
+    };
+    pad.addEventListener("pointerup", release);
+    pad.addEventListener("pointercancel", release);
+    pad.addEventListener("pointerleave", release);
     return pad;
   }
 
