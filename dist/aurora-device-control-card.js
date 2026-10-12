@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.5";
+const VERSION = "1.0.6";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -484,9 +484,11 @@ const CARD_CSS = `
     white-space: nowrap;
   }
   ha-card.on .name { color: var(--card-on-text-color, var(--primary-text-color)); }
+  /* Card dang BAT: nut va o trang thai pha mau cua thiet bi thay vi xam.
+     Mau chu = mau thiet bi tron voi mau chu cua card, nen du tuong phan tren ca nen sang lan nen toi. */
   ha-card.on .quick button, ha-card.on .badge.show-text {
-    background: var(--card-on-sub-button-background-color, rgba(255, 255, 255, 0.1));
-    color: var(--card-on-text-color, var(--primary-text-color));
+    background: color-mix(in srgb, var(--ir-accent) 16%, transparent);
+    color: color-mix(in srgb, var(--ir-accent) 62%, var(--card-on-text-color, var(--primary-text-color)));
   }
   /* Nut chi co icon dung chung hang voi nut co chu: thu gon lai, nhuong cho cho chu */
   .quick button.compact { flex: 0 0 48px; }
