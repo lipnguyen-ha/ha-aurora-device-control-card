@@ -33,6 +33,8 @@ Card không phụ thuộc Bubble Card, button-card hay card-mod.
 
 ## Cấu hình
 
+Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **IR Remote Card**. Form cấu hình cho chọn loại remote và bộ phát IR (card tự liệt kê các node ESPHome có action `send_...`). Cũng có thể viết YAML với các tùy chọn sau:
+
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
 | `remote` | Có | Tên bộ mã: `hsv_fan`, `toshiba_fan`, `lg_soundbar` |

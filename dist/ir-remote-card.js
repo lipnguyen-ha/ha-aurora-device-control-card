@@ -11,7 +11,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 // Bo ma IR. Them thiet bi moi = them mot muc o day.
 //   protocol: phan duoi cua action ESPHome (nec, samsung, ...)
@@ -330,6 +330,17 @@ function icon(name) {
   return el("ha-icon", { icon: name });
 }
 
+// Ten cac node ESPHome co action esphome.<ten>_send_<giao thuc>
+function findBlasters(hass) {
+  const services = (hass && hass.services && hass.services.esphome) || {};
+  const names = new Set();
+  for (const service of Object.keys(services)) {
+    const match = service.match(/^(.+)_send_[a-z0-9]+$/);
+    if (match) names.add(match[1]);
+  }
+  return [...names].sort();
+}
+
 class IrRemoteCard extends HTMLElement {
   constructor() {
     super();
@@ -340,8 +351,12 @@ class IrRemoteCard extends HTMLElement {
     };
   }
 
-  static getStubConfig() {
-    return { remote: "hsv_fan", blaster: "ten_node_esphome" };
+  static getStubConfig(hass) {
+    return { remote: "hsv_fan", blaster: findBlasters(hass)[0] || "ten_node_esphome" };
+  }
+
+  static getConfigElement() {
+    return document.createElement("ir-remote-card-editor");
   }
 
   setConfig(config) {
@@ -532,6 +547,85 @@ class IrRemoteCard extends HTMLElement {
     host.classList.remove("open");
     setTimeout(() => host.remove(), 300);
   }
+}
+
+// Form cau hinh trong trinh sua card cua dashboard. Bo ma "custom" van sua bang YAML.
+const EDITOR_LABELS = {
+  remote: "Loại remote",
+  blaster: "Bộ phát IR (node ESPHome)",
+  name: "Tên hiển thị (để trống = tên mặc định)",
+  icon: "Icon (để trống = icon mặc định)",
+  availability_entity: "Entity báo mất kết nối (để trống = tự động)",
+};
+
+class IrRemoteCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config;
+    this._update();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._update();
+  }
+
+  _schema() {
+    const blasters = findBlasters(this._hass);
+    const current = this._config.blaster;
+    if (current && !blasters.includes(current)) blasters.unshift(current);
+    const schema = [];
+    if (!this._config.custom) {
+      schema.push({
+        name: "remote",
+        required: true,
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: Object.entries(REMOTES).map(([value, def]) => ({ value, label: def.name })),
+          },
+        },
+      });
+    }
+    schema.push(
+      {
+        name: "blaster",
+        required: true,
+        selector: { select: { mode: "dropdown", custom_value: true, options: blasters } },
+      },
+      { name: "name", selector: { text: {} } },
+      { name: "icon", selector: { icon: {} } },
+      { name: "availability_entity", selector: { entity: {} } }
+    );
+    return schema;
+  }
+
+  _update() {
+    if (!this._config || !this._hass) return;
+    if (!this._form) {
+      this._form = document.createElement("ha-form");
+      this._form.computeLabel = (field) => EDITOR_LABELS[field.name] || field.name;
+      this._form.addEventListener("value-changed", (ev) => {
+        ev.stopPropagation();
+        const config = { ...ev.detail.value };
+        // Bo cac o de trong de YAML gon va card dung gia tri mac dinh
+        for (const key of ["name", "icon", "availability_entity"]) {
+          if (config[key] === "" || config[key] == null) delete config[key];
+        }
+        this._config = config;
+        this.dispatchEvent(
+          new CustomEvent("config-changed", { bubbles: true, composed: true, detail: { config } })
+        );
+      });
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = this._schema();
+  }
+}
+
+if (!customElements.get("ir-remote-card-editor")) {
+  customElements.define("ir-remote-card-editor", IrRemoteCardEditor);
 }
 
 if (!customElements.get("ir-remote-card")) {
