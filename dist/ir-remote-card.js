@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -283,6 +283,8 @@ const REMOTES = {
     color: "#B394E8",
     button_height: 54,
     on_states: ["cleaning", "returning", "paused"],
+    // Nut nhanh mac dinh: dung don va quay ve dock
+    default_quick: [{ icon: "mdi:home-import-outline", service: "vacuum.return_to_base" }],
   },
 
   // Camera: pop-up co hinh truc tiep, phia duoi la luoi nut khai bao bang "controls"
@@ -299,8 +301,9 @@ const REMOTES = {
 };
 
 // Nut gan voi mot entity (dung trong "quick" va "controls"). Viet tat: chi ghi entity id.
-//   { entity, name, icon, color, action, path, confirm, wide }
+//   { entity, name, icon, color, action, path, service, data, confirm, wide }
 //   action mac dinh theo domain: button -> press; switch/light/siren... -> toggle; con lai -> more-info
+//   service: goi mot action cua HA (vd. vacuum.return_to_base) len entity cua nut, hoac entity cua card
 const TOGGLE_DOMAINS = ["switch", "light", "siren", "fan", "input_boolean", "cover", "humidifier"];
 const normalizeControl = (spec) => (typeof spec === "string" ? { entity: spec } : spec);
 
@@ -421,13 +424,12 @@ const CARD_CSS = `
     font-weight: 600;
   }
   .quick {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+    display: flex;
     gap: 8px;
     height: 36px;
   }
   .quick button {
+    flex: 1 1 0;
     border: none;
     padding: 0;
     border-radius: 18px;
@@ -456,7 +458,15 @@ const CARD_CSS = `
     background: var(--card-on-sub-button-background-color, rgba(255, 255, 255, 0.1));
     color: var(--card-on-text-color, var(--primary-text-color));
   }
-  ha-card .quick button.active { background: var(--control-color, var(--ir-accent)); color: #fff; }
+  /* Nut chi co icon dung chung hang voi nut co chu: thu gon lai, nhuong cho cho chu */
+  .quick button.compact { flex: 0 0 48px; }
+  ha-card .quick button.active { background: var(--ir-accent); color: #fff; }
+  /* Cong tac dang bat: nen trang chu den, hoac mau rieng cua nut neu co dat */
+  ha-card .quick button.active.control {
+    background: var(--control-color, #f2f2f7);
+    color: var(--control-text-color, #1c1c1e);
+    box-shadow: inset 0 0 0 1px rgba(60, 60, 67, 0.18);
+  }
   button:active { transform: scale(0.95); filter: brightness(1.35); }
 `;
 
@@ -665,7 +675,7 @@ function climateModes(stateObj) {
 // Nut nhanh mac dinh khi nguoi dung chua chon "quick"
 function defaultQuick(def, stateObj) {
   if (def.kind === "climate") return climateModes(stateObj).slice(0, 3);
-  if (def.kind) return [];
+  if (def.kind) return def.default_quick || [];
   return def.quick || [];
 }
 
@@ -823,7 +833,7 @@ class IrRemoteCard extends HTMLElement {
     const chosen = Array.isArray(this._config.quick) ? this._config.quick : defaultQuick(this._def, stateObj);
     if (this._isEntityKind) {
       return chosen.map(normalizeControl).map((spec) => ({
-        id: spec.entity || spec.path,
+        id: spec.entity || spec.path || spec.service,
         label: spec.name || this._entityName(spec.entity),
         show_label: true,
         active: this._controlIsOn(spec),
@@ -846,12 +856,21 @@ class IrRemoteCard extends HTMLElement {
     const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}`).join(",");
     if (key === this._quickKey) return;
     this._quickKey = key;
+    const anyLabel = buttons.some((b) => b.show_label && b.label);
     this._quick.replaceChildren(
       ...buttons.map((btn) => {
         const children = [btn.control ? this._controlIcon(btn.control) : icon(btn.icon)];
-        if (btn.show_label && btn.label) children.push(el("span", { text: btn.label }));
-        const node = el("button", { title: btn.label || btn.id, class: btn.active ? "active" : "" }, children);
-        if (btn.control && btn.control.color) node.style.setProperty("--control-color", cssColor(btn.control.color));
+        const labelled = btn.show_label && btn.label;
+        if (labelled) children.push(el("span", { text: btn.label }));
+        const classes = [];
+        if (btn.active) classes.push("active");
+        if (btn.control) classes.push("control");
+        if (!labelled && anyLabel) classes.push("compact");
+        const node = el("button", { title: btn.label || btn.id, class: classes.join(" ") }, children);
+        if (btn.control && btn.control.color) {
+          node.style.setProperty("--control-color", cssColor(btn.control.color));
+          node.style.setProperty("--control-text-color", "#fff");
+        }
         node.addEventListener("click", () => this._press(btn));
         return node;
       })
@@ -955,6 +974,7 @@ class IrRemoteCard extends HTMLElement {
   // ----- Nut gan voi entity -----
   _controlAction(spec) {
     if (spec.action) return spec.action;
+    if (spec.service) return "service";
     if (spec.path) return "navigate";
     const domain = (spec.entity || "").split(".")[0];
     if (domain === "button" || domain === "input_button") return "press";
@@ -968,7 +988,7 @@ class IrRemoteCard extends HTMLElement {
 
   // Icon khai bao trong nut, hoac icon mac dinh cua entity
   _controlIcon(spec) {
-    if (spec.icon || !spec.entity) return icon(spec.icon || "mdi:gesture-tap");
+    if (spec.icon || !spec.entity || spec.service) return icon(spec.icon || "mdi:gesture-tap");
     const node = document.createElement("ha-state-icon");
     node.hass = this._hass;
     node.stateObj = this._hass ? this._hass.states[spec.entity] : undefined;
@@ -982,6 +1002,13 @@ class IrRemoteCard extends HTMLElement {
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
     if (action === "navigate") return this._navigate(spec.path);
     if (action === "more-info") return this._moreInfo(spec.entity);
+    if (action === "service") {
+      const [serviceDomain, serviceName] = spec.service.split(".");
+      this._hass
+        .callService(serviceDomain, serviceName, { entity_id: spec.entity || this._config.entity, ...(spec.data || {}) })
+        .catch((err) => this._notifyError(err));
+      return;
+    }
     const [domain, service] = action === "press" ? [spec.entity.split(".")[0], "press"] : ["homeassistant", "toggle"];
     this._hass.callService(domain, service, { entity_id: spec.entity }).catch((err) => this._notifyError(err));
   }
@@ -1131,7 +1158,7 @@ class IrRemoteCard extends HTMLElement {
         this._buildGrid({
           columns: this._config.columns || 3,
           buttons: this._controls.map((spec) => ({
-            id: spec.entity || spec.path,
+            id: spec.entity || spec.path || spec.service,
             label: spec.name,
             wide: spec.wide,
             control: spec,
@@ -1300,6 +1327,7 @@ const CONTROL_FIELDS = {
   entity: { label: "Entity (nút bấm, công tắc, đèn...)", selector: { entity: {} } },
   name: { label: "Chữ hiển thị (để trống = tên entity)", selector: { text: {} } },
   icon: { label: "Icon (để trống = icon của entity)", selector: { icon: {} } },
+  service: { label: "Action gọi thay cho bấm entity (vd. vacuum.return_to_base)", selector: { text: {} } },
 };
 const POPUP_CONTROL_FIELDS = {
   ...CONTROL_FIELDS,
@@ -1404,7 +1432,7 @@ class IrRemoteCardEditor extends HTMLElement {
     const def = resolveRemote(this._config) || {};
     const data = { ...this._config };
     if (def.kind === "entity") {
-      data.quick = (this._config.quick || []).map(normalizeControl);
+      data.quick = (this._config.quick || defaultQuick(def)).map(normalizeControl);
       data.controls = (this._config.controls || []).map(normalizeControl);
     } else if (!Array.isArray(data.quick)) {
       data.quick = defaultQuick(def, this._stateObj());
@@ -1434,7 +1462,7 @@ class IrRemoteCardEditor extends HTMLElement {
           for (const key of ["quick", "controls"]) {
             const list = (config[key] || [])
               .map((item) => Object.fromEntries(Object.entries(item || {}).filter(([, v]) => v !== "" && v != null && v !== false)))
-              .filter((item) => item.entity || item.path);
+              .filter((item) => item.entity || item.path || item.service);
             if (list.length) config[key] = list;
             else delete config[key];
           }

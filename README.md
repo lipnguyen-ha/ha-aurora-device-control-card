@@ -120,10 +120,11 @@ Mỗi nút trong `quick` và `controls` nhận:
 | `color` | Màu khi entity đang bật |
 | `action` | `toggle`, `press`, `more-info` hoặc `navigate`. Mặc định theo loại entity: `button` thì bấm, `switch`/`light`/`siren`... thì bật tắt, còn lại mở hộp thoại của entity |
 | `path` | Đường dẫn để chuyển trang (tự hiểu là `navigate`) |
+| `service` | Gọi một action của Home Assistant thay cho bấm entity, ví dụ `vacuum.return_to_base`. Action chạy trên `entity` của nút, không có thì trên entity của card. Thêm tham số bằng `data` |
 | `confirm` | Câu hỏi xác nhận trước khi thực hiện |
 | `wide` | `true` để nút chiếm cả hàng |
 
-- **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
+- **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Khi chưa khai báo `quick`, card có sẵn một nút dừng dọn và quay về dock. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
 - **Camera:** pop-up hiện hình trực tiếp. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `columns` đổi số cột của lưới nút, mặc định 3.
 
 ## Bộ mã có sẵn
