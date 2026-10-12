@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.1.3";
+const VERSION = "1.2.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -447,6 +447,14 @@ const CARD_CSS = `
     transition: opacity 0.2s, background-color 0.2s;
   }
   ha-card.offline { opacity: 0.45; }
+  /* hide_quick: an hang nut nhanh, card thap bang mot tile cua Home Assistant */
+  ha-card.compact {
+    height: var(--ir-remote-card-compact-height, 56px);
+    justify-content: center;
+    padding: 0 10px;
+  }
+  ha-card.compact .quick { display: none; }
+  ha-card.compact .icon { width: 36px; height: 36px; --mdc-icon-size: 20px; }
   /* Camera mat ket noi: vien do thay vi lam mo */
   ha-card.alert {
     outline: 1.5px solid rgba(239, 138, 128, 0.6);
@@ -1004,6 +1012,7 @@ class IrRemoteCard extends HTMLElement {
     this._card = el("ha-card", {}, [top, this._quick]);
     this._card.style.setProperty("--ir-accent", this._color);
     this._card.classList.toggle("stateless", !this._config.entity);
+    this._card.classList.toggle("compact", !!this._config.hide_quick);
     this.shadowRoot.replaceChildren(el("style", { text: CARD_CSS }), this._card);
   }
 
@@ -1677,6 +1686,7 @@ const EDITOR_LABELS = {
   availability_entity: "Entity báo mất kết nối (để trống = tự động)",
   badge_entity: "Ô trạng thái góc phải: entity hiển thị (để trống = mặc định)",
   badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = mặc định của loại thiết bị)",
+  hide_quick: "Ẩn hàng nút nhanh (card thấp bằng một tile)",
   quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
   quick_entities: "Nút nhanh trên card",
   remote_entity: "Entity remote để gửi lệnh (để trống = tự tìm theo tên)",
@@ -1778,8 +1788,18 @@ class IrRemoteCardEditor extends HTMLElement {
       schema.push({ name: "badge_entity", selector: { entity: {} } }, { name: "badge_icon", selector: { icon: {} } });
     }
 
-    // Nut nhanh: chon tu cac chuc nang cua loai thiet bi
-    if (def.kind === "entity") {
+    schema.push({ name: "hide_quick", selector: { boolean: {} } });
+    // Nut nhanh: chon tu cac chuc nang cua loai thiet bi (khong can khi da an hang nut)
+    if (this._config.hide_quick) {
+      if (def.kind === "entity") {
+        schema.push({
+          name: "controls",
+          selector: {
+            object: { multiple: true, label_field: "name", description_field: "entity", fields: POPUP_CONTROL_FIELDS },
+          },
+        });
+      }
+    } else if (def.kind === "entity") {
       schema.push(
         {
           name: "quick",
@@ -1856,6 +1876,7 @@ class IrRemoteCardEditor extends HTMLElement {
           config.apps = config.apps.map((name) => custom[name] || name);
           if (!config.apps.length) delete config.apps;
         }
+        if (!config.hide_quick) delete config.hide_quick;
         const before = deviceOf(this._config);
         const deviceChanged = config.device !== before.device;
         const models = (DEVICES[config.device] || {}).models;
