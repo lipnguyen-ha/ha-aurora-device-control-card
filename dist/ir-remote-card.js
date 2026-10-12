@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -409,14 +409,17 @@ const POPUP_CSS = `
     background: var(--bubble-backdrop-background-color, rgba(0, 0, 0, 0.3));
     opacity: 0;
     transition: opacity 0.25s;
+    touch-action: none;
   }
   .sheet {
     position: relative;
     box-sizing: border-box;
     width: 100%;
     max-width: 540px;
-    height: 100%;
-    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    /* Chua thanh trang thai / tai tho cua dien thoai o phia tren */
+    height: calc(100% - max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px)) - 12px);
+    padding: 6px 14px calc(14px + env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
     border-radius: 28px 28px 0 0;
     background: var(--ir-remote-popup-background, var(--bubble-pop-up-main-background-color, var(--ha-card-background, var(--card-background-color, #222))));
     -webkit-backdrop-filter: blur(30px);
@@ -431,6 +434,15 @@ const POPUP_CSS = `
   }
   :host(.open) .backdrop { opacity: 1; }
   :host(.open) .sheet { transform: translateY(0); }
+  .sheet.dragging { transition: none; }
+  /* Thanh nam: goi y vuot xuong de dong */
+  .handle {
+    width: 40px;
+    height: 4px;
+    margin: 0 auto 10px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.3);
+  }
   .header {
     display: flex;
     align-items: center;
@@ -858,6 +870,7 @@ class IrRemoteCard extends HTMLElement {
 
     const body = this._isClimate ? this._buildClimateBody() : this._groups.map((group) => this._buildGrid(group));
     const sheet = el("div", { class: "sheet" }, [
+      el("div", { class: "handle" }),
       el("div", { class: "header" }, [
         el("div", { class: "icon" }, [icon(this._icon)]),
         el("div", { class: "name", text: this._name }),
@@ -867,7 +880,11 @@ class IrRemoteCard extends HTMLElement {
     ]);
 
     root.append(el("style", { text: POPUP_CSS }), backdrop, sheet);
+    this._bindSheetGestures(host, sheet);
     document.body.appendChild(host);
+
+    this._prevOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
 
     // Them mot muc lich su de nut Back cua dien thoai dong pop-up thay vi roi dashboard
     history.pushState({ irRemoteCard: true }, "");
@@ -877,12 +894,84 @@ class IrRemoteCard extends HTMLElement {
     requestAnimationFrame(() => requestAnimationFrame(() => host.classList.add("open")));
   }
 
+  // Vuot xuong de dong, va chan cu chi cuon lot ra dashboard phia sau
+  _bindSheetGestures(host, sheet) {
+    let startY = null;
+    let delta = 0;
+    let dragged = false;
+
+    sheet.addEventListener(
+      "touchstart",
+      (ev) => {
+        // Chi bat dau keo khi noi dung dang o dau trang, de khong tranh voi viec cuon
+        startY = sheet.scrollTop <= 0 ? ev.touches[0].clientY : null;
+        delta = 0;
+        dragged = false;
+      },
+      { passive: true }
+    );
+    sheet.addEventListener(
+      "touchmove",
+      (ev) => {
+        if (startY === null) return;
+        delta = ev.touches[0].clientY - startY;
+        if (delta <= 0) {
+          // Vuot len: de sheet tu cuon neu noi dung dai, con khong thi chan lai
+          if (sheet.scrollHeight <= sheet.clientHeight && ev.cancelable) ev.preventDefault();
+          return;
+        }
+        if (ev.cancelable) ev.preventDefault();
+        if (delta > 8) dragged = true;
+        sheet.classList.add("dragging");
+        sheet.style.transform = `translateY(${delta}px)`;
+      },
+      { passive: false }
+    );
+    const end = () => {
+      if (startY === null) return;
+      startY = null;
+      sheet.classList.remove("dragging");
+      sheet.style.transform = "";
+      if (delta > 110) this._closePopup(true);
+    };
+    sheet.addEventListener("touchend", end);
+    sheet.addEventListener("touchcancel", end);
+    // Vua keo xong thi khong tinh la bam nut
+    sheet.addEventListener(
+      "click",
+      (ev) => {
+        if (!dragged) return;
+        dragged = false;
+        ev.stopPropagation();
+        ev.preventDefault();
+      },
+      true
+    );
+
+    // Lan chuot / cham tren nen mo khong duoc cuon trang phia sau
+    host.addEventListener(
+      "wheel",
+      (ev) => {
+        if (!ev.composedPath().includes(sheet) || sheet.scrollHeight <= sheet.clientHeight) ev.preventDefault();
+      },
+      { passive: false }
+    );
+    host.addEventListener(
+      "touchmove",
+      (ev) => {
+        if (!ev.composedPath().includes(sheet) && ev.cancelable) ev.preventDefault();
+      },
+      { passive: false }
+    );
+  }
+
   // popHistory = true khi nguoi dung tu dong (bam X, nen, Esc): can lui lai muc lich su da them
   _closePopup(popHistory) {
     const host = this._popup;
     if (!host) return;
     this._popup = null;
     this._embedded = [];
+    document.documentElement.style.overflow = this._prevOverflow || "";
     window.removeEventListener("popstate", this._onPopState);
     window.removeEventListener("keydown", this._onKeyDown);
     if (popHistory && history.state && history.state.irRemoteCard) history.back();
