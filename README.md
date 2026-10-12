@@ -1,8 +1,8 @@
 # IR Remote Card
 
-Card Lovelace cho Home Assistant, dùng để điều khiển các thiết bị hồng ngoại "không trạng thái" (quạt, loa, đèn dùng remote) qua bộ phát IR chạy ESPHome.
+Card Lovelace cho Home Assistant, dùng để điều khiển các thiết bị hồng ngoại (quạt, loa, TV, điều hòa) qua bộ phát IR chạy ESPHome.
 
-Mỗi thiết bị chỉ cần ba dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up remote đầy đủ, và tự báo khi bộ phát IR mất kết nối.
+Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up remote đầy đủ, và tự báo khi bộ phát IR mất kết nối.
 
 ```yaml
 type: custom:ir-remote-card
@@ -37,8 +37,9 @@ Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **IR Remo
 
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
-| `remote` | Có | Tên bộ mã: `hsv_fan`, `toshiba_fan`, `lg_soundbar` |
-| `blaster` | Có | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
+| `remote` | Có | Tên bộ mã, xem bảng "Bộ mã có sẵn" |
+| `blaster` | Có, trừ `climate` | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
+| `entity` | Chỉ với `climate` | Entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV. Với `remote: climate` đây là entity điều hòa |
 | `name` | Không | Tên hiển thị, mặc định lấy theo bộ mã |
 | `icon` | Không | Icon hiển thị, mặc định lấy theo bộ mã |
 | `availability_entity` | Không | Entity dùng để biết bộ phát còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
@@ -51,15 +52,86 @@ Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **IR Remo
 - Bấm **phần còn lại** của card: mở pop-up remote đầy đủ.
 - Khi bộ phát IR mất kết nối, card mờ đi và hiện "Unavailable".
 
-Vì remote hồng ngoại chỉ gửi lệnh một chiều, card không biết thiết bị đang bật hay tắt.
+Remote hồng ngoại chỉ gửi lệnh một chiều, nên mặc định card không biết thiết bị đang bật hay tắt và hiện viền nét đứt. Nếu thiết bị có một entity khác báo được trạng thái (TV có kết nối mạng, ổ cắm đo điện), khai báo nó ở `entity`: card sẽ bỏ viền nét đứt và đổi màu khi thiết bị bật.
+
+```yaml
+type: custom:ir-remote-card
+remote: samsung_tv
+blaster: s06_ir
+entity: media_player.samsung_tv
+```
+
+## Điều hòa
+
+Điều hòa hồng ngoại trong ESPHome đã là một entity `climate` đầy đủ, nên card điều khiển thẳng entity đó, không cần `blaster`:
+
+```yaml
+type: custom:ir-remote-card
+remote: climate
+entity: climate.s06_ir_toshiba_ac
+```
+
+- Bấm icon: bật hoặc tắt.
+- Ba nút hàng dưới: các chế độ đầu tiên mà điều hòa hỗ trợ (làm lạnh, hút ẩm, quạt...), chế độ đang chạy được tô màu.
+- Góc phải: nhiệt độ đang đặt.
+- Pop-up: card thermostat gốc của Home Assistant, kèm các nút đặt sẵn (tắt, lạnh 24, lạnh 26, hút ẩm, quạt, đảo gió).
 
 ## Bộ mã có sẵn
 
-| `remote` | Thiết bị | Giao thức |
-|---|---|---|
-| `hsv_fan` | Quạt trần đèn HSV | NEC |
-| `toshiba_fan` | Quạt Toshiba LSD10 | NEC |
-| `lg_soundbar` | Loa thanh LG | Samsung (32 bit) |
+| `remote` | Thiết bị | Giao thức | Tình trạng |
+|---|---|---|---|
+| `hsv_fan` | Quạt trần đèn HSV | NEC | Đã dùng thật |
+| `toshiba_fan` | Quạt Toshiba LSD10 | NEC | Đã dùng thật |
+| `lg_soundbar` | Loa thanh LG | Samsung (32 bit) | Đã dùng thật |
+| `samsung_tv` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
+| `lg_tv` | TV LG | NEC | **Chưa thử trên TV thật** |
+| `sony_tv` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
+| `climate` | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
+
+Mã của `lg_tv` và `sony_tv` lấy từ các bảng mã phổ biến của hai hãng, tác giả không có TV để kiểm tra. Nếu nút nào không chạy trên TV của bạn, hãy mở issue kèm tên model.
+
+## Action cần có trên bộ phát ESPHome
+
+Card gọi `esphome.<blaster>_send_<giao thức>`. Khai báo các action tương ứng trong YAML của bộ phát:
+
+```yaml
+api:
+  actions:
+    # Dung cho: hsv_fan, toshiba_fan, lg_tv
+    - action: send_nec
+      variables:
+        address: int
+        command: int
+        repeats: int
+      then:
+        - remote_transmitter.transmit_nec:
+            address: !lambda 'return (uint16_t) address;'
+            command: !lambda 'return (uint16_t) command;'
+            command_repeats: !lambda 'return (uint8_t) repeats;'
+
+    # Dung cho: samsung_tv, lg_soundbar
+    - action: send_samsung
+      variables:
+        address: int
+        command: int
+      then:
+        - remote_transmitter.transmit_samsung:
+            data: !lambda 'return ((uint32_t) address << 16) | ((uint32_t) command & 0xFFFF);'
+            nbits: 32
+
+    # Dung cho: sony_tv (Sony yeu cau gui lap lai 3 lan)
+    - action: send_sony
+      variables:
+        data: int
+        nbits: int
+      then:
+        - remote_transmitter.transmit_sony:
+            data: !lambda 'return (uint32_t) data;'
+            nbits: !lambda 'return (uint8_t) nbits;'
+            repeat:
+              times: 3
+              wait_time: 45ms
+```
 
 ## Thêm thiết bị của riêng bạn
 
@@ -85,6 +157,8 @@ custom:
 ```
 
 Nút có `label` hiện icon nhỏ kèm chữ, nút không có `label` chỉ hiện icon to. `{ spacer: true }` tạo một ô trống. Từng nút có thể ghi đè `address`, `protocol`, `repeats`.
+
+Với giao thức gửi dạng `data` + `nbits` (ví dụ Sony), mỗi nút khai báo `data` thay cho `command`, và đặt `nbits` ở mức chung hoặc từng nút. Thay `buttons` bằng `groups` nếu cần nhiều lưới có số cột khác nhau: `groups: [{ columns: 4, buttons: [...] }]`.
 
 ## Dự án liên quan
 
