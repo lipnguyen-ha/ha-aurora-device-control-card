@@ -22,7 +22,7 @@ Card không phụ thuộc Bubble Card, button-card hay card-mod.
 ### Qua HACS
 
 1. Mở HACS, bấm menu ba chấm ở góc phải trên, chọn **Custom repositories**.
-2. Dán `https://github.com/philipnguyen8588/ha-ir-remote-card`, chọn loại **Dashboard**, bấm **Add**.
+2. Dán `https://github.com/lipnguyen-ha/ha-ir-remote-card`, chọn loại **Dashboard**, bấm **Add**.
 3. Tìm **IR Remote Card** trong HACS, bấm **Download**.
 4. Tải lại trang dashboard (trên app điện thoại: Settings → Companion app → Debugging → Reset frontend cache).
 
@@ -83,6 +83,10 @@ custom:
 ```
 
 Nút có `label` hiện icon nhỏ kèm chữ, nút không có `label` chỉ hiện icon to. `{ spacer: true }` tạo một ô trống. Từng nút có thể ghi đè `address`, `protocol`, `repeats`.
+
+## Dự án liên quan
+
+- [Aurora Home Theme](https://github.com/lipnguyen-ha/ha-aurora-home-theme): theme nền gradient, thẻ kính mờ cho Home Assistant. Card này lấy màu nền và bo góc theo theme đang dùng.
 
 ## Giấy phép
 
