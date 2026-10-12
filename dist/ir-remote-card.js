@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.4.1";
+const VERSION = "0.5.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -267,12 +267,42 @@ const REMOTES = {
   // Khong phai bo ma IR: dieu khien mot entity climate (vi du climate IR cua ESPHome)
   climate: {
     kind: "climate",
+    domain: "climate",
     name: "Điều hòa",
     icon: "mdi:air-conditioner",
     color: "#5CC4EA",
     button_height: 54,
   },
+
+  // Robot hut bui: card theo entity vacuum, nut nhanh va nut pop-up khai bao bang "quick" / "controls"
+  vacuum: {
+    kind: "entity",
+    domain: "vacuum",
+    name: "Robot hút bụi",
+    icon: "mdi:robot-vacuum",
+    color: "#B394E8",
+    button_height: 54,
+    on_states: ["cleaning", "returning", "paused"],
+  },
+
+  // Camera: pop-up co hinh truc tiep, phia duoi la luoi nut khai bao bang "controls"
+  camera: {
+    kind: "entity",
+    domain: "camera",
+    name: "Camera",
+    icon: "mdi:cctv",
+    color: "#6AA9F0",
+    button_height: 54,
+    on_states: [],
+    live: true,
+  },
 };
+
+// Nut gan voi mot entity (dung trong "quick" va "controls"). Viet tat: chi ghi entity id.
+//   { entity, name, icon, color, action, path, confirm, wide }
+//   action mac dinh theo domain: button -> press; switch/light/siren... -> toggle; con lai -> more-info
+const TOGGLE_DOMAINS = ["switch", "light", "siren", "fan", "input_boolean", "cover", "humidifier"];
+const normalizeControl = (spec) => (typeof spec === "string" ? { entity: spec } : spec);
 
 // Ten mau cua Home Assistant (o chon mau trong form tra ve ten, vd. "teal") -> gia tri CSS.
 // Gia tri khac (#hex, rgb(), var()) duoc dung nguyen.
@@ -312,6 +342,12 @@ const CARD_CSS = `
     outline-offset: -1.5px;
   }
   ha-card.offline { opacity: 0.45; }
+  /* Camera mat ket noi: vien do thay vi lam mo */
+  ha-card.alert {
+    outline: 1.5px solid rgba(239, 138, 128, 0.6);
+    outline-offset: -1.5px;
+  }
+  ha-card.alert .icon { color: #ef8a80; }
   ha-card.on {
     background: var(--card-on-background-color, color-mix(in srgb, var(--ir-accent) 22%, transparent));
     box-shadow: inset 0 0 0 1px var(--card-on-border-color, color-mix(in srgb, var(--ir-accent) 65%, transparent));
@@ -374,6 +410,13 @@ const CARD_CSS = `
     white-space: nowrap;
   }
   .badge.show-text ha-icon, .badge.show-icon .text { display: none; }
+  /* Trang thai dang chu mau, khong co nen (camera: Online / Offline) */
+  ha-card .badge.plain {
+    padding: 0 6px;
+    background: none;
+    font-size: 12px;
+    font-weight: 600;
+  }
   .quick {
     display: grid;
     grid-auto-flow: column;
@@ -394,13 +437,23 @@ const CARD_CSS = `
     --mdc-icon-size: 20px;
     transition: transform 0.1s, filter 0.1s;
     -webkit-tap-highlight-color: transparent;
+    min-width: 0;
+    gap: 5px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .quick button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   ha-card.on .name { color: var(--card-on-text-color, var(--primary-text-color)); }
   ha-card.on .quick button, ha-card.on .badge.show-text {
     background: var(--card-on-sub-button-background-color, rgba(255, 255, 255, 0.1));
     color: var(--card-on-text-color, var(--primary-text-color));
   }
-  ha-card .quick button.active { background: var(--ir-accent); color: #fff; }
+  ha-card .quick button.active { background: var(--control-color, var(--ir-accent)); color: #fff; }
   button:active { transform: scale(0.95); filter: brightness(1.35); }
 `;
 
@@ -408,7 +461,8 @@ const POPUP_CSS = `
   :host {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    /* Tren thanh tieu de cua HA, duoi cac hop thoai (more-info) */
+    z-index: 6;
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -502,6 +556,22 @@ const POPUP_CSS = `
     --mdc-icon-size: 22px;
   }
   .embedded { margin-bottom: 8px; }
+  .offline-box {
+    height: 180px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1.5px dashed rgba(239, 138, 128, 0.55);
+    border-radius: 14px;
+    background: rgba(239, 138, 128, 0.1);
+    color: #ef8a80;
+    font-size: 13px;
+    font-weight: 600;
+    --mdc-icon-size: 44px;
+  }
   .grid {
     display: grid;
     gap: 8px;
@@ -575,7 +645,14 @@ class IrRemoteCard extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._embedded = [];
-    this._onPopState = () => this._closePopup(false);
+    this._onPopState = () => {
+      // Lan lui lich su nay la do hop thoai more-info dong lai, khong phai nguoi dung bam Back
+      if (this._childDialog) {
+        this._childDialog = false;
+        return;
+      }
+      this._closePopup(false);
+    };
     this._onKeyDown = (ev) => {
       if (ev.key === "Escape") this._closePopup(true);
     };
@@ -596,8 +673,10 @@ class IrRemoteCard extends HTMLElement {
         `ir-remote-card: khong co remote '${config.remote}'. Co san: ${Object.keys(REMOTES).join(", ")}`
       );
     }
-    if (def.kind === "climate") {
-      if (!config.entity) throw new Error("ir-remote-card: remote 'climate' can 'entity' (mot entity climate)");
+    if (def.kind) {
+      if (!config.entity) {
+        throw new Error(`ir-remote-card: remote '${config.remote}' can 'entity' (mot entity ${def.domain})`);
+      }
     } else if (!config.blaster) {
       throw new Error("ir-remote-card: thieu 'blaster' (ten node ESPHome phat IR)");
     }
@@ -608,6 +687,8 @@ class IrRemoteCard extends HTMLElement {
     for (const group of this._groups) {
       for (const btn of group.buttons) if (btn.id) this._byId[btn.id] = btn;
     }
+    this._controls = (config.controls || []).map(normalizeControl);
+    this._controlNodes = [];
     this._blasterIds = null;
     this._quickKey = null;
     this._render();
@@ -617,6 +698,7 @@ class IrRemoteCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._update();
+    this._updateControls();
     for (const card of this._embedded) card.hass = hass;
   }
 
@@ -636,6 +718,16 @@ class IrRemoteCard extends HTMLElement {
     return this._def.kind === "climate";
   }
 
+  // Loai theo entity voi nut tu khai bao (vacuum, camera)
+  get _isEntityKind() {
+    return this._def.kind === "entity";
+  }
+
+  // Co pop-up rieng hay khong; khong co thi bam card mo hop thoai more-info cua HA
+  get _hasPopup() {
+    return !this._isEntityKind || !!this._def.live || this._controls.length > 0;
+  }
+
   get _stateObj() {
     const id = this._config.entity;
     return id && this._hass ? this._hass.states[id] : undefined;
@@ -644,7 +736,7 @@ class IrRemoteCard extends HTMLElement {
   get _name() {
     if (this._config.name) return this._config.name;
     const stateObj = this._stateObj;
-    if (this._isClimate && stateObj && stateObj.attributes.friendly_name) return stateObj.attributes.friendly_name;
+    if (this._def.kind && stateObj && stateObj.attributes.friendly_name) return stateObj.attributes.friendly_name;
     return this._def.name;
   }
 
@@ -661,13 +753,14 @@ class IrRemoteCard extends HTMLElement {
     iconButton.addEventListener("click", (ev) => {
       ev.stopPropagation();
       if (this._isClimate) this._callEntity("toggle");
+      else if (this._isEntityKind) this._openMain();
       else this._send(this._byId[this._def.power]);
     });
 
     this._nameEl = el("div", { class: "name", text: this._name });
     this._badge = el("div", { class: "badge" }, [icon("mdi:remote"), el("span", { class: "text" })]);
     const top = el("div", { class: "top" }, [iconButton, this._nameEl, this._badge]);
-    top.addEventListener("click", () => this._openPopup());
+    top.addEventListener("click", () => this._openMain());
 
     this._quick = el("div", { class: "quick" });
     this._card = el("ha-card", {}, [top, this._quick]);
@@ -678,6 +771,15 @@ class IrRemoteCard extends HTMLElement {
 
   // Ba nut nhanh o hang duoi. Dieu hoa: lay tu hvac_modes cua entity.
   _quickButtons() {
+    if (this._isEntityKind) {
+      return (this._config.quick || []).map(normalizeControl).map((spec) => ({
+        id: spec.entity || spec.path,
+        label: spec.name,
+        show_label: true,
+        active: this._controlIsOn(spec),
+        control: spec,
+      }));
+    }
     if (!this._isClimate) {
       return (this._def.quick || []).map((id) => this._byId[id]).filter(Boolean);
     }
@@ -694,14 +796,15 @@ class IrRemoteCard extends HTMLElement {
 
   _renderQuick() {
     const buttons = this._quickButtons();
-    const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}`).join(",");
+    const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}`).join(",");
     if (key === this._quickKey) return;
     this._quickKey = key;
     this._quick.replaceChildren(
       ...buttons.map((btn) => {
-        const node = el("button", { title: btn.label || btn.id, class: btn.active ? "active" : "" }, [
-          icon(btn.icon),
-        ]);
+        const children = [btn.control ? this._controlIcon(btn.control) : icon(btn.icon)];
+        if (btn.show_label && btn.label) children.push(el("span", { text: btn.label }));
+        const node = el("button", { title: btn.label || btn.id, class: btn.active ? "active" : "" }, children);
+        if (btn.control && btn.control.color) node.style.setProperty("--control-color", cssColor(btn.control.color));
         node.addEventListener("click", () => this._press(btn));
         return node;
       })
@@ -716,7 +819,7 @@ class IrRemoteCard extends HTMLElement {
     if (explicit) {
       return !!states[explicit] && OFFLINE_STATES.includes(states[explicit].state);
     }
-    if (this._isClimate) {
+    if (this._def.kind) {
       const stateObj = this._stateObj;
       return !!stateObj && OFFLINE_STATES.includes(stateObj.state);
     }
@@ -735,19 +838,38 @@ class IrRemoteCard extends HTMLElement {
     if (!this._card) return;
     const offline = this._isOffline();
     const stateObj = this._stateObj;
-    const on = !offline && !!stateObj && !OFF_STATES.includes(stateObj.state);
-    this._card.classList.toggle("offline", offline);
+    const onStates = this._def.on_states;
+    const on =
+      !offline && !!stateObj && (onStates ? onStates.includes(stateObj.state) : !OFF_STATES.includes(stateObj.state));
+    const live = !!this._def.live;
+    this._card.classList.toggle("offline", offline && !live);
+    this._card.classList.toggle("alert", offline && live);
     this._card.classList.toggle("on", on);
     this._nameEl.textContent = this._name;
 
-    // Goc phai: "Unavailable" khi mat ket noi, nhiet do dat cua dieu hoa, hoac icon remote
+    // Goc phai: "Unavailable" khi mat ket noi, nhiet do dat cua dieu hoa, trang thai camera,
+    // gia tri cua badge_entity, hoac icon remote
+    const states = (this._hass && this._hass.states) || {};
     let text = "";
-    if (offline) {
+    let color = "";
+    if (live) {
+      const privacy = states[this._config.privacy_entity];
+      if (offline) [text, color] = ["● Offline", "#ef8a80"];
+      else if (privacy && privacy.state === "on") [text, color] = ["● Riêng tư", "#f2c879"];
+      else [text, color] = ["● Online", "#81c995"];
+    } else if (offline) {
       text = (this._hass && this._hass.localize("state.default.unavailable")) || "Unavailable";
     } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
       text = `${stateObj.attributes.temperature} °C`;
+    } else if (states[this._config.badge_entity]) {
+      const badge = states[this._config.badge_entity];
+      text = this._hass.formatEntityState
+        ? this._hass.formatEntityState(badge)
+        : `${badge.state} ${badge.attributes.unit_of_measurement || ""}`.trim();
     }
     this._badge.querySelector(".text").textContent = text;
+    this._badge.style.color = color;
+    this._badge.classList.toggle("plain", live);
     this._badge.classList.toggle("show-text", !!text);
     this._badge.classList.toggle("show-icon", !text && !this._config.entity);
 
@@ -775,8 +897,84 @@ class IrRemoteCard extends HTMLElement {
 
   _press(btn) {
     if (!btn) return;
-    if (btn.service) this._callEntity(btn.service[0], btn.service[1]);
+    if (btn.control) this._pressControl(btn.control);
+    else if (btn.service) this._callEntity(btn.service[0], btn.service[1]);
     else this._send(btn);
+  }
+
+  // ----- Nut gan voi entity -----
+  _controlAction(spec) {
+    if (spec.action) return spec.action;
+    if (spec.path) return "navigate";
+    const domain = (spec.entity || "").split(".")[0];
+    if (domain === "button" || domain === "input_button") return "press";
+    return TOGGLE_DOMAINS.includes(domain) ? "toggle" : "more-info";
+  }
+
+  _controlIsOn(spec) {
+    const stateObj = spec.entity && this._hass ? this._hass.states[spec.entity] : undefined;
+    return !!stateObj && this._controlAction(spec) === "toggle" && stateObj.state === "on";
+  }
+
+  // Icon khai bao trong nut, hoac icon mac dinh cua entity
+  _controlIcon(spec) {
+    if (spec.icon || !spec.entity) return icon(spec.icon || "mdi:gesture-tap");
+    const node = document.createElement("ha-state-icon");
+    node.hass = this._hass;
+    node.stateObj = this._hass ? this._hass.states[spec.entity] : undefined;
+    return node;
+  }
+
+  _pressControl(spec) {
+    if (!this._hass) return;
+    if (spec.confirm && !window.confirm(spec.confirm)) return;
+    const action = this._controlAction(spec);
+    this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
+    if (action === "navigate") return this._navigate(spec.path);
+    if (action === "more-info") return this._moreInfo(spec.entity);
+    const [domain, service] = action === "press" ? [spec.entity.split(".")[0], "press"] : ["homeassistant", "toggle"];
+    this._hass.callService(domain, service, { entity_id: spec.entity }).catch((err) => this._notifyError(err));
+  }
+
+  _moreInfo(entityId) {
+    // Hop thoai more-info tu them/lui mot muc lich su; khong de lan lui do dong pop-up cua card
+    if (this._popup) this._childDialog = true;
+    this.dispatchEvent(
+      new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId } })
+    );
+  }
+
+  _navigate(path) {
+    if (this._popup) {
+      // Thay muc lich su cua pop-up bang trang moi, de nut Back quay ve dashboard
+      this._closePopup(false);
+      history.replaceState(null, "", path);
+    } else {
+      history.pushState(null, "", path);
+    }
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+  }
+
+  // Bam vao card: mo pop-up, hoac more-info neu loai nay khong co pop-up
+  _openMain() {
+    if (this._hasPopup) this._openPopup();
+    else this._moreInfo(this._config.entity);
+  }
+
+  // To mau cac nut trong pop-up theo trang thai bat/tat cua entity
+  _updateControls() {
+    for (const { node, iconNode, spec } of this._controlNodes) {
+      const on = this._controlIsOn(spec);
+      const color = cssColor(spec.color) || "var(--ir-accent)";
+      node.style.background = on ? `color-mix(in srgb, ${color} 20%, transparent)` : "";
+      node.style.borderColor = on ? `color-mix(in srgb, ${color} 65%, transparent)` : "";
+      iconNode.style.color = on ? color : "";
+      iconNode.style.opacity = on ? "1" : "";
+      if (iconNode.localName === "ha-state-icon") {
+        iconNode.hass = this._hass;
+        iconNode.stateObj = this._hass.states[spec.entity];
+      }
+    }
   }
 
   _send(btn) {
@@ -805,7 +1003,7 @@ class IrRemoteCard extends HTMLElement {
         grid.appendChild(el("div"));
         continue;
       }
-      const btnIcon = icon(btn.icon);
+      const btnIcon = btn.control ? this._controlIcon(btn.control) : icon(btn.icon);
       const size = btn.icon_size || (btn.label ? 24 : 28);
       btnIcon.style.setProperty("--mdc-icon-size", `${size}px`);
       if (btn.color) {
@@ -817,36 +1015,80 @@ class IrRemoteCard extends HTMLElement {
       const node = el("button", { title: btn.label || btn.id, class: btn.highlight ? "highlight" : "" }, children);
       node.style.height = `${this._def.button_height || 54}px`;
       if (!btn.label) node.style.gridTemplateRows = "1fr";
+      if (btn.wide) node.style.gridColumn = "1 / -1";
+      if (btn.control) this._controlNodes.push({ node, iconNode: btnIcon, spec: btn.control });
       node.addEventListener("click", () => this._press(btn));
       grid.appendChild(node);
     }
     return grid;
   }
 
-  // Noi dung pop-up cua dieu hoa: card thermostat goc cua HA
-  _buildClimateBody() {
-    const stateObj = this._stateObj;
-    const attrs = (stateObj && stateObj.attributes) || {};
-    const body = [];
-
+  // Nhung mot card goc cua HA vao pop-up
+  _embedCard(config) {
     const holder = el("div", { class: "embedded" });
-    body.push(holder);
-    const features = [{ type: "climate-hvac-modes" }];
-    if (attrs.fan_modes) features.push({ type: "climate-fan-modes" });
-    if (attrs.swing_modes) features.push({ type: "climate-swing-modes" });
     if (window.loadCardHelpers) {
       window
         .loadCardHelpers()
         .then((helpers) => {
           if (!this._popup) return;
-          const card = helpers.createCardElement({ type: "thermostat", entity: this._config.entity, features });
+          const card = helpers.createCardElement(config);
           card.hass = this._hass;
           this._embedded.push(card);
           holder.appendChild(card);
         })
         .catch((err) => this._notifyError(err));
     }
+    return holder;
+  }
 
+  // Noi dung pop-up cua dieu hoa: card thermostat goc cua HA
+  _buildClimateBody() {
+    const stateObj = this._stateObj;
+    const attrs = (stateObj && stateObj.attributes) || {};
+    const features = [{ type: "climate-hvac-modes" }];
+    if (attrs.fan_modes) features.push({ type: "climate-fan-modes" });
+    if (attrs.swing_modes) features.push({ type: "climate-swing-modes" });
+    return [this._embedCard({ type: "thermostat", entity: this._config.entity, features })];
+  }
+
+  // Noi dung pop-up cua vacuum / camera: hinh truc tiep (neu la camera) + luoi nut "controls"
+  _buildEntityBody() {
+    const body = [];
+    if (this._def.live) {
+      if (this._isOffline()) {
+        body.push(
+          el("div", { class: "offline-box" }, [
+            icon("mdi:cctv-off"),
+            el("span", { text: this._config.offline_text || "Camera offline" }),
+          ])
+        );
+      } else {
+        body.push(
+          this._embedCard({
+            type: "picture-entity",
+            entity: this._config.entity,
+            camera_view: "live",
+            show_name: false,
+            show_state: false,
+            tap_action: { action: "none" },
+            hold_action: { action: "none" },
+          })
+        );
+      }
+    }
+    if (this._controls.length) {
+      body.push(
+        this._buildGrid({
+          columns: this._config.columns || 3,
+          buttons: this._controls.map((spec) => ({
+            id: spec.entity || spec.path,
+            label: spec.name,
+            wide: spec.wide,
+            control: spec,
+          })),
+        })
+      );
+    }
     return body;
   }
 
@@ -863,7 +1105,13 @@ class IrRemoteCard extends HTMLElement {
     const backdrop = el("div", { class: "backdrop" });
     backdrop.addEventListener("click", () => this._closePopup(true));
 
-    const body = this._isClimate ? this._buildClimateBody() : this._groups.map((group) => this._buildGrid(group));
+    this._controlNodes = [];
+    const body = this._isClimate
+      ? this._buildClimateBody()
+      : this._isEntityKind
+        ? this._buildEntityBody()
+        : this._groups.map((group) => this._buildGrid(group));
+    this._updateControls();
     const sheet = el("div", { class: "sheet" }, [
       el("div", { class: "handle" }),
       el("div", { class: "header" }, [
@@ -969,10 +1217,12 @@ class IrRemoteCard extends HTMLElement {
     if (!host) return;
     this._popup = null;
     this._embedded = [];
+    this._controlNodes = [];
+    this._childDialog = false;
     document.documentElement.style.overflow = this._prevOverflow || "";
     window.removeEventListener("popstate", this._onPopState);
     window.removeEventListener("keydown", this._onKeyDown);
-    if (popHistory && history.state && history.state.irRemoteCard) history.back();
+    if (popHistory) history.back();
     host.classList.remove("open");
     setTimeout(() => host.remove(), 300);
   }
@@ -983,7 +1233,7 @@ const EDITOR_LABELS = {
   remote: "Loại thiết bị",
   blaster: "Bộ phát IR (node ESPHome)",
   entity: "Entity trạng thái (tùy chọn: để card biết đang bật hay tắt)",
-  climate_entity: "Entity điều hòa (climate)",
+  device_entity: "Entity của thiết bị",
   name: "Tên hiển thị (để trống = tên mặc định)",
   icon: "Icon (để trống = icon mặc định)",
   color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
@@ -1016,8 +1266,8 @@ class IrRemoteCardEditor extends HTMLElement {
         },
       });
     }
-    if (def.kind === "climate") {
-      schema.push({ name: "entity", label: "climate_entity", required: true, selector: { entity: { domain: "climate" } } });
+    if (def.kind) {
+      schema.push({ name: "entity", label: "device_entity", required: true, selector: { entity: { domain: def.domain } } });
     } else {
       const blasters = findBlasters(this._hass);
       const current = this._config.blaster;
@@ -1036,7 +1286,7 @@ class IrRemoteCardEditor extends HTMLElement {
       { name: "icon", selector: { icon: {} } },
       { name: "color", selector: { ui_color: {} } }
     );
-    if (def.kind !== "climate") schema.push({ name: "availability_entity", selector: { entity: {} } });
+    if (!def.kind) schema.push({ name: "availability_entity", selector: { entity: {} } });
     return schema;
   }
 
@@ -1075,7 +1325,7 @@ if (!customElements.get("ir-remote-card")) {
   window.customCards.push({
     type: "ir-remote-card",
     name: "IR Remote Card",
-    description: "Remote cho quat, loa, TV va dieu hoa hong ngoai, phat qua ESPHome",
+    description: "Remote hong ngoai qua ESPHome (quat, loa, TV), dieu hoa, robot hut bui va camera",
   });
   console.info(`%c IR-REMOTE-CARD %c v${VERSION} `, "background:#3E9BF0;color:#fff", "background:#333;color:#fff");
 }

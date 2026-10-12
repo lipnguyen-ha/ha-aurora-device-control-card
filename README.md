@@ -1,6 +1,6 @@
 # IR Remote Card
 
-Card Lovelace cho Home Assistant, dùng để điều khiển các thiết bị hồng ngoại (quạt, loa, TV, điều hòa) qua bộ phát IR chạy ESPHome.
+Card Lovelace cho Home Assistant, dùng để điều khiển các thiết bị hồng ngoại (quạt, loa, TV, điều hòa) qua bộ phát IR chạy ESPHome. Cùng kiểu card đó cũng dùng được cho robot hút bụi và camera, để cả dashboard đồng bộ một giao diện.
 
 Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up remote đầy đủ, và tự báo khi bộ phát IR mất kết nối.
 
@@ -77,6 +77,52 @@ entity: climate.s06_ir_toshiba_ac
 - Góc phải: nhiệt độ đang đặt.
 - Pop-up: card thermostat gốc của Home Assistant, có vòng chỉnh nhiệt độ, chọn chế độ, tốc độ quạt và đảo gió nếu điều hòa hỗ trợ.
 
+## Robot hút bụi và camera
+
+Hai loại này không gửi mã IR. Card theo dõi một entity, còn các nút do bạn khai báo bằng danh sách entity.
+
+```yaml
+type: custom:ir-remote-card
+remote: vacuum
+entity: vacuum.roborock
+name: Roborock
+badge_entity: sensor.roborock_cleaning_progress   # hiện ở góc phải
+quick:                                            # các nút ở hàng dưới
+  - { entity: button.roborock_clean_all, name: Dọn nhà }
+  - { entity: button.roborock_clean_living_room, name: Dọn PK }
+```
+
+```yaml
+type: custom:ir-remote-card
+remote: camera
+entity: camera.tapo_hd_stream
+privacy_entity: switch.tapo_privacy    # góc phải hiện Online / Riêng tư / Offline
+quick:
+  - { entity: switch.tapo_privacy, name: Riêng tư, icon: mdi:eye-off }
+controls:                              # lưới nút trong pop-up, dưới hình trực tiếp
+  - { entity: switch.tapo_privacy, name: RIÊNG TƯ, icon: mdi:eye-off, color: "#F2C879" }
+  - { entity: button.tapo_move_up, icon: mdi:chevron-up }
+  - { entity: siren.tapo_siren, name: CÒI, icon: mdi:alarm-light, confirm: "Bật/tắt còi?" }
+  - { entity: select.tapo_night_vision, name: ĐÊM, icon: mdi:weather-night }
+  - { name: LỊCH SỬ, icon: mdi:history, path: /media-browser/browser, wide: true }
+```
+
+Mỗi nút trong `quick` và `controls` nhận:
+
+| Trường | Mô tả |
+|---|---|
+| `entity` | Entity của nút. Viết tắt được: chỉ ghi entity id thay cho cả khối |
+| `name` | Chữ hiển thị. Bỏ trống thì nút chỉ có icon |
+| `icon` | Bỏ trống thì lấy icon của entity |
+| `color` | Màu khi entity đang bật |
+| `action` | `toggle`, `press`, `more-info` hoặc `navigate`. Mặc định theo loại entity: `button` thì bấm, `switch`/`light`/`siren`... thì bật tắt, còn lại mở hộp thoại của entity |
+| `path` | Đường dẫn để chuyển trang (tự hiểu là `navigate`) |
+| `confirm` | Câu hỏi xác nhận trước khi thực hiện |
+| `wide` | `true` để nút chiếm cả hàng |
+
+- **Robot hút bụi:** card đổi màu khi robot đang dọn, đang về đế hoặc tạm dừng. Không khai báo `controls` thì bấm vào card sẽ mở hộp thoại gốc của Home Assistant.
+- **Camera:** pop-up hiện hình trực tiếp. Khi camera mất kết nối, card có viền đỏ và pop-up hiện ô báo offline (đổi chữ bằng `offline_text`). `columns` đổi số cột của lưới nút, mặc định 3.
+
 ## Bộ mã có sẵn
 
 | `remote` | Thiết bị | Giao thức | Tình trạng |
@@ -88,6 +134,8 @@ entity: climate.s06_ir_toshiba_ac
 | `lg_tv` | TV LG | NEC | **Chưa thử trên TV thật** |
 | `sony_tv` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
 | `climate` | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
+| `vacuum` | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
+| `camera` | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
 
 Mã của `lg_tv` và `sony_tv` lấy từ các bảng mã phổ biến của hai hãng, tác giả không có TV để kiểm tra. Nếu nút nào không chạy trên TV của bạn, hãy mở issue kèm tên model.
 
