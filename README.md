@@ -116,6 +116,10 @@ apps: [Netflix, YouTube, Spotify]
 
 Card tự tìm entity remote và cảm biến bàn phím theo tên của `media_player` (`remote.<tên>`, `binary_sensor.<tên>_keyboard_focus`). Nếu tên khác, khai báo `remote_entity` và `keyboard_entity`.
 
+### TV hồng ngoại
+
+Pop-up của TV (Samsung, LG, Sony) dùng cùng bố cục với Apple TV: vòng tròn điều hướng ở giữa (bấm hoặc giữ tay kéo như bàn chạm), bên dưới là các phím cơ bản: quay lại, home, tắt tiếng, nguồn vào, âm lượng, chuyển kênh và nguồn. Phím số, MENU, GUIDE, EXIT, bốn phím màu và các phím phát nhạc nằm trong phần **"Phím số và phím khác"**, bấm để mở.
+
 ### Điều hòa
 
 Điều hòa hồng ngoại trong ESPHome đã là một entity `climate` đầy đủ, nên card điều khiển thẳng entity đó, không cần `blaster`:

@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.3.3";
+const VERSION = "1.4.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -78,6 +78,58 @@ function tvGroups(codes) {
       ],
     },
   ];
+}
+
+// Bo cuc pop-up kieu remote Apple cho TV: vong dieu huong + cac phim co ban,
+// phim so va phim phu nam trong phan mo rong. Tra ve cac truong de trai vao dinh nghia remote.
+function tvLayout(codes) {
+  const b = (id, icon, extra = {}) => (codes[id] ? { id, icon, ...extra, ...codes[id] } : { spacer: true });
+  const num = (n) => b(`num_${n}`, `mdi:numeric-${n}-circle`, { icon_size: 34 });
+  return {
+    groups: tvGroups(codes),
+    layout: "pad",
+    pad: {
+      ok: "ok",
+      main: ["return", "home", "mute", "source"],
+      pairs: [["vol_down", "vol_up"], ["ch_down", "ch_up"]],
+      round: "power",
+      extra: [
+        {
+          columns: 3,
+          buttons: [
+            num(1), num(2), num(3),
+            num(4), num(5), num(6),
+            num(7), num(8), num(9),
+            b("pre_ch", "mdi:history", { label: "PRE-CH" }),
+            num(0),
+            b("info", "mdi:information-outline", { label: "INFO" }),
+            b("menu", "mdi:menu", { label: "MENU" }),
+            b("guide", "mdi:television-guide", { label: "GUIDE" }),
+            b("exit", "mdi:exit-to-app", { label: "EXIT" }),
+          ],
+        },
+        {
+          columns: 4,
+          buttons: [
+            b("red", "mdi:circle", { color: "#e53935" }),
+            b("green", "mdi:circle", { color: "#43a047" }),
+            b("yellow", "mdi:circle", { color: "#fdd835" }),
+            b("blue", "mdi:circle", { color: "#1e88e5" }),
+          ],
+        },
+        {
+          columns: 5,
+          buttons: [
+            b("rewind", "mdi:rewind"),
+            b("play", "mdi:play"),
+            b("pause", "mdi:pause"),
+            b("stop", "mdi:stop"),
+            b("fast_forward", "mdi:fast-forward"),
+          ],
+        },
+      ],
+    },
+  };
 }
 
 const mapValues = (obj, fn) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fn(v)]));
@@ -185,7 +237,7 @@ const REMOTES = {
     button_height: 54,
     power: "power",
     quick: ["mute", "vol_down", "vol_up"],
-    groups: tvGroups(
+    ...tvLayout(
       mapValues(
         {
           power: 16575, source: 32895,
@@ -214,7 +266,7 @@ const REMOTES = {
     button_height: 54,
     power: "power",
     quick: ["mute", "vol_down", "vol_up"],
-    groups: tvGroups(
+    ...tvLayout(
       mapValues(
         {
           power: 0x08, source: 0x0b,
@@ -243,7 +295,7 @@ const REMOTES = {
     button_height: 54,
     power: "power",
     quick: ["mute", "vol_down", "vol_up"],
-    groups: tvGroups({
+    ...tvLayout({
       ...mapValues(
         {
           power: 0xa90, source: 0xa50,
@@ -281,6 +333,12 @@ const REMOTES = {
     keyboard: true,
     // Pop-up dung bo cuc vong tron dieu huong (_buildPadBody) thay cho luoi nut
     layout: "pad",
+    pad: {
+      ok: "select",
+      main: ["menu", "play_pause", "home"],
+      pairs: [["skip_backward", "skip_forward"], ["volume_down", "volume_up"]],
+      round: "power",
+    },
     buttons: [
       { id: "up", icon: "mdi:chevron-up", command: "up" },
       { id: "down", icon: "mdi:chevron-down", command: "down" },
@@ -826,6 +884,26 @@ const POPUP_CSS = `
     --mdc-icon-size: 22px;
   }
   .btn-row.last { margin-bottom: 16px; }
+  /* Nut mo rong va phan phim phu */
+  .more {
+    width: 100%;
+    height: 44px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 22px;
+    background: rgba(127, 127, 127, 0.16);
+    color: var(--primary-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    --mdc-icon-size: 20px;
+    -webkit-tap-highlight-color: transparent;
+  }
   .apps {
     display: flex;
     gap: 8px;
@@ -1417,7 +1495,7 @@ class IrRemoteCard extends HTMLElement {
     let swipedAt = 0;
     for (const id of ["up", "down", "left", "right"]) {
       const btn = this._byId[id];
-      const node = el("button", { class: id, title: id }, [icon(btn.icon)]);
+      const node = el("button", { class: id, title: id }, [icon(`mdi:chevron-${id}`)]);
       node.addEventListener("click", () => {
         if (Date.now() - swipedAt > 400) this._press(btn);
       });
@@ -1425,7 +1503,7 @@ class IrRemoteCard extends HTMLElement {
     }
     const ok = el("button", { class: "ok", title: "select", text: "OK" });
     ok.addEventListener("click", () => {
-      if (Date.now() - swipedAt > 400) this._press(this._byId.select);
+      if (Date.now() - swipedAt > 400) this._press(this._byId[this._def.pad.ok]);
     });
     pad.appendChild(ok);
 
@@ -1492,27 +1570,48 @@ class IrRemoteCard extends HTMLElement {
     return node;
   }
 
-  // Hai hang nut duoi vong dieu huong:
-  //   [ quay lai ] [ phat/dung ] [ TV ]             ba nut lon chia deu
-  //   [ lui 10 | toi 10 ] [ giam am | tang am ] (nguon)
+  // Hai hang nut duoi vong dieu huong, lay tu def.pad:
+  //   main  : cac nut lon chia deu chieu ngang
+  //   pairs : cac cap nut ghep (lui / toi, giam / tang am, kenh xuong / len); round: nut tron cuoi hang
   _buildPadButtons() {
-    const pair = (ids) => el("div", { class: "pair" }, ids.map((id) => this._padButton(id)));
+    const spec = this._def.pad;
+    const have = (id) => !!this._byId[id];
+    const pair = (ids) => el("div", { class: "pair" }, ids.filter(have).map((id) => this._padButton(id)));
+    const second = spec.pairs.map(pair);
+    if (have(spec.round)) second.push(this._padButton(spec.round, "round"));
     return [
-      el("div", { class: "btn-row" }, ["menu", "play_pause", "home"].map((id) => this._padButton(id))),
-      el("div", { class: "btn-row last" }, [
-        pair(["skip_backward", "skip_forward"]),
-        pair(["volume_down", "volume_up"]),
-        this._padButton("power", "round"),
-      ]),
+      el("div", { class: "btn-row" }, spec.main.filter(have).map((id) => this._padButton(id))),
+      el("div", { class: "btn-row last" }, second),
     ];
   }
 
+  // Phan mo rong: phim so va phim phu, an cho toi khi bam nut mo rong
+  _buildPadExtra(groups) {
+    const panel = el("div", { class: "extra" }, groups.map((group) => this._buildGrid(group)));
+    panel.hidden = true;
+    const chevron = icon("mdi:chevron-down");
+    const toggle = el("button", { class: "more" }, [
+      icon("mdi:dialpad"),
+      el("span", { text: "Phím số và phím khác" }),
+      chevron,
+    ]);
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      chevron.setAttribute("icon", panel.hidden ? "mdi:chevron-down" : "mdi:chevron-up");
+      if (!panel.hidden && panel.scrollIntoView) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return [toggle, panel];
+  }
+
   _buildPadBody() {
-    const body = [this._buildNowPlaying()];
+    const body = [];
+    if (this._def.kind === "media") body.push(this._buildNowPlaying());
     if (this._def.keyboard) body.push(this._buildKeyboard());
     body.push(this._buildPad(), ...this._buildPadButtons());
+    if (this._def.pad.extra) body.push(...this._buildPadExtra(this._def.pad.extra));
     return body;
   }
+
 
   // Cac ung dung chon trong "apps": bam de mo (media_player.select_source)
   _buildApps() {
