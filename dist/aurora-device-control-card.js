@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.1.0";
+const VERSION = "1.1.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -393,6 +393,35 @@ function cssColor(value) {
   return /^[a-z]+(-[a-z]+)*$/.test(value) ? `var(--${value}-color)` : value;
 }
 
+// Icon cho cac ung dung pho bien (so khop theo ten viet thuong). Ung dung khac dung icon chung;
+// dat icon rieng bang cach khai bao apps: [{ name: "Infuse", icon: "mdi:play-box" }].
+const APP_ICONS = {
+  youtube: "mdi:youtube",
+  netflix: "mdi:netflix",
+  spotify: "mdi:spotify",
+  plex: "mdi:plex",
+  twitch: "mdi:twitch",
+  tv: "mdi:television-classic",
+  music: "mdi:music",
+  podcasts: "mdi:podcast",
+  photos: "mdi:image-multiple",
+  settings: "mdi:cog",
+  search: "mdi:magnify",
+  "app store": "mdi:store",
+  arcade: "mdi:gamepad-variant",
+  facetime: "mdi:video",
+  fitness: "mdi:run",
+  computers: "mdi:monitor",
+  speedtest: "mdi:speedometer",
+  infuse: "mdi:play-box",
+  "disney+": "mdi:castle",
+  "prime video": "mdi:amazon",
+  kodi: "mdi:kodi",
+  vlc: "mdi:vlc",
+  steam: "mdi:steam",
+};
+const DEFAULT_APP_ICON = "mdi:application";
+
 const OFFLINE_STATES = ["unavailable", "unknown"];
 const OFF_STATES = ["off", "standby", "idle", "unavailable", "unknown"];
 // Thu tu cung la thu tu uu tien khi chon 3 nut nhanh cua dieu hoa
@@ -702,8 +731,12 @@ const POPUP_CSS = `
     margin-bottom: 8px;
   }
   .apps button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    --mdc-icon-size: 18px;
     height: 34px;
-    padding: 0 14px;
+    padding: 0 14px 0 10px;
     border: 1px solid rgba(127, 127, 127, 0.22);
     border-radius: 17px;
     background: rgba(127, 127, 127, 0.16);
@@ -1226,9 +1259,14 @@ class IrRemoteCard extends HTMLElement {
     const stateObj = this._stateObj;
     const current = stateObj && (stateObj.attributes.source || stateObj.attributes.app_name);
     const row = el("div", { class: "apps" });
-    for (const app of this._config.apps || []) {
-      const node = el("button", { text: app, class: app === current ? "active" : "" });
-      node.addEventListener("click", () => this._callEntity("select_source", { source: app }));
+    for (const item of this._config.apps || []) {
+      const app = typeof item === "string" ? { name: item } : item;
+      const appIcon = app.icon || APP_ICONS[String(app.name).toLowerCase()] || DEFAULT_APP_ICON;
+      const node = el("button", { class: app.name === current ? "active" : "" }, [
+        icon(appIcon),
+        el("span", { text: app.name }),
+      ]);
+      node.addEventListener("click", () => this._callEntity("select_source", { source: app.name }));
       row.appendChild(node);
     }
     return row;
@@ -1720,7 +1758,10 @@ class IrRemoteCardEditor extends HTMLElement {
     if (!def.kind) schema.push({ name: "availability_entity", selector: { entity: {} } });
     if (def.transport === "remote") {
       const sources = (this._stateObj() && this._stateObj().attributes.source_list) || [];
-      for (const app of this._config.apps || []) if (!sources.includes(app)) sources.push(app);
+      for (const item of this._config.apps || []) {
+        const app = typeof item === "string" ? item : item.name;
+        if (!sources.includes(app)) sources.push(app);
+      }
       schema.push(
         { name: "remote_entity", selector: { entity: { domain: "remote" } } },
         { name: "apps", selector: { select: { multiple: true, reorder: true, custom_value: true, mode: "dropdown", options: sources } } }
@@ -1781,7 +1822,11 @@ class IrRemoteCardEditor extends HTMLElement {
     } else if (!Array.isArray(data.quick)) {
       data.quick = defaultQuick(def, this._stateObj());
     }
-    if (Array.isArray(data.apps) && !data.apps.length) delete data.apps;
+    // O chon chi lam viec voi ten ung dung; icon rieng (neu co) duoc ghep lai khi luu
+    if (Array.isArray(data.apps)) {
+      data.apps = data.apps.map((item) => (typeof item === "string" ? item : item.name));
+      if (!data.apps.length) delete data.apps;
+    }
     return data;
   }
 
@@ -1796,6 +1841,14 @@ class IrRemoteCardEditor extends HTMLElement {
         // Bo cac o de trong de YAML gon va card dung gia tri mac dinh
         for (const key of ["entity", "name", "icon", "color", "availability_entity", "blaster", "badge_entity", "badge_icon", "remote_entity"]) {
           if (config[key] === "" || config[key] == null) delete config[key];
+        }
+        if (Array.isArray(config.apps)) {
+          // Giu lai icon rieng da khai bao bang YAML cho nhung ung dung van con duoc chon
+          const custom = Object.fromEntries(
+            (this._config.apps || []).filter((item) => typeof item !== "string").map((item) => [item.name, item])
+          );
+          config.apps = config.apps.map((name) => custom[name] || name);
+          if (!config.apps.length) delete config.apps;
         }
         const before = deviceOf(this._config);
         const deviceChanged = config.device !== before.device;
