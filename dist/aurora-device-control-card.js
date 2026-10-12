@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.1.1";
+const VERSION = "1.1.2";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -274,7 +274,7 @@ const REMOTES = {
     transport: "remote",
     name: "Apple TV",
     icon: "mdi:apple",
-    color: "#8E9AAF",
+    color: "#F08AA8",
     button_height: 54,
     off_states: ["off", "standby", "unavailable", "unknown"],
     default_quick: ["play_pause", "menu", "home"],
