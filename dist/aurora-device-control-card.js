@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -279,33 +279,22 @@ const REMOTES = {
     off_states: ["off", "standby", "unavailable", "unknown"],
     default_quick: ["play_pause", "menu", "home"],
     keyboard: true,
-    groups: [
-      {
-        columns: 3,
-        buttons: [
-          { id: "power", icon: "mdi:power", color: "#e53935", power: true },
-          { spacer: true },
-          { id: "home", icon: "mdi:television", label: "TV", command: "home" },
-          { spacer: true },
-          { id: "up", icon: "mdi:arrow-up-bold", command: "up", highlight: true },
-          { spacer: true },
-          { id: "left", icon: "mdi:arrow-left-bold", command: "left", highlight: true },
-          { id: "select", icon: "mdi:circle-outline", label: "OK", command: "select", highlight: true },
-          { id: "right", icon: "mdi:arrow-right-bold", command: "right", highlight: true },
-          { id: "menu", icon: "mdi:arrow-u-left-top", label: "BACK", command: "menu" },
-          { id: "down", icon: "mdi:arrow-down-bold", command: "down", highlight: true },
-          { id: "play_pause", icon: "mdi:play-pause", command: "play_pause" },
-        ],
-      },
-      {
-        columns: 4,
-        buttons: [
-          { id: "skip_backward", icon: "mdi:rewind-10", command: "skip_backward" },
-          { id: "skip_forward", icon: "mdi:fast-forward-10", command: "skip_forward" },
-          { id: "volume_down", icon: "mdi:volume-minus", command: "volume_down" },
-          { id: "volume_up", icon: "mdi:volume-plus", command: "volume_up" },
-        ],
-      },
+    // Pop-up dung bo cuc vong tron dieu huong (_buildPadBody) thay cho luoi nut
+    layout: "pad",
+    buttons: [
+      { id: "up", icon: "mdi:chevron-up", command: "up" },
+      { id: "down", icon: "mdi:chevron-down", command: "down" },
+      { id: "left", icon: "mdi:chevron-left", command: "left" },
+      { id: "right", icon: "mdi:chevron-right", command: "right" },
+      { id: "select", icon: "mdi:circle-outline", label: "OK", command: "select" },
+      { id: "menu", icon: "mdi:arrow-u-left-top", label: "BACK", command: "menu" },
+      { id: "play_pause", icon: "mdi:play-pause", command: "play_pause" },
+      { id: "home", icon: "mdi:television", label: "TV", command: "home" },
+      { id: "skip_backward", icon: "mdi:rewind-10", command: "skip_backward" },
+      { id: "skip_forward", icon: "mdi:fast-forward-10", command: "skip_forward" },
+      { id: "volume_down", icon: "mdi:volume-minus", command: "volume_down" },
+      { id: "volume_up", icon: "mdi:volume-plus", command: "volume_up" },
+      { id: "power", icon: "mdi:power", color: "#e53935", power: true },
     ],
   },
 
@@ -708,7 +697,102 @@ const POPUP_CSS = `
     background: rgba(127, 127, 127, 0.16);
     --mdc-icon-size: 20px;
   }
-  .keyboard.inactive { opacity: 0.5; }
+  [hidden] { display: none !important; }
+  /* Noi dung dang phat */
+  .now-playing {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 16px;
+    background: rgba(127, 127, 127, 0.12);
+  }
+  .now-playing .art {
+    flex: none;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--ir-accent, #90a4ae) 18%, transparent);
+    color: var(--ir-accent, #90a4ae);
+    --mdc-icon-size: 28px;
+  }
+  .now-playing .art img { width: 100%; height: 100%; object-fit: cover; }
+  .now-playing .info { flex: 1; min-width: 0; }
+  .now-playing .title, .now-playing .sub {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .now-playing .title { font-size: 14px; font-weight: 600; }
+  .now-playing .sub { margin-top: 3px; font-size: 12px; color: var(--secondary-text-color); }
+  /* Vong tron dieu huong: bon huong tren vanh, OK o tam. Vi tri dat bang top/left (khong dung
+     transform) de hieu ung bam button:active khong lam lech nut. */
+  .pad {
+    position: relative;
+    width: min(240px, 66vw);
+    aspect-ratio: 1;
+    margin: 14px auto 18px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 50%;
+    background: rgba(127, 127, 127, 0.16);
+    touch-action: none;
+  }
+  .pad button {
+    position: absolute;
+    border: none;
+    padding: 0;
+    background: none;
+    color: var(--primary-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    --mdc-icon-size: 34px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pad .up { top: 0; left: 30%; width: 40%; height: 32%; }
+  .pad .down { bottom: 0; left: 30%; width: 40%; height: 32%; }
+  .pad .left { left: 0; top: 30%; width: 32%; height: 40%; }
+  .pad .right { right: 0; top: 30%; width: 32%; height: 40%; }
+  .pad .ok {
+    left: 31%;
+    top: 31%;
+    width: 38%;
+    height: 38%;
+    border: 1px solid color-mix(in srgb, var(--ir-accent, #90a4ae) 70%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--ir-accent, #90a4ae) 24%, transparent);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  /* Cac nut tron duoi vong dieu huong */
+  .round-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .round-row button {
+    flex: none;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(127, 127, 127, 0.16);
+    color: var(--primary-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
   .keyboard input {
     flex: 1;
     min-width: 0;
@@ -736,11 +820,15 @@ const POPUP_CSS = `
   }
   .apps {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
   }
+  .apps::-webkit-scrollbar { display: none; }
   .apps button {
+    flex: none;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -937,6 +1025,7 @@ class IrRemoteCard extends HTMLElement {
     this._update();
     this._updateControls();
     this._updateKeyboard();
+    this._updateNowPlaying();
     for (const card of this._embedded) {
       card.hass = hass;
       if (card.localName === "ha-camera-stream") card.stateObj = this._stateObj;
@@ -1260,13 +1349,138 @@ class IrRemoteCard extends HTMLElement {
     return box;
   }
 
+  // O go chu chi hien khi thiet bi dang mo cho nhap (tim kiem, mat khau)
   _updateKeyboard() {
     if (!this._keyboard || !this._hass) return;
+    const { box, input } = this._keyboard;
     const focused = this._keyboardFocused();
-    this._keyboard.box.classList.toggle("inactive", !focused);
-    this._keyboard.input.placeholder = focused
-      ? "Gõ để nhập trên thiết bị"
-      : "Thiết bị chưa mở ô nhập chữ";
+    const wasHidden = box.hidden;
+    box.hidden = !focused;
+    input.placeholder = "Gõ để nhập trên thiết bị";
+    if (focused && wasHidden) {
+      input.value = "";
+      input.focus();
+    }
+  }
+
+  // Dai "dang phat": anh bia, ten noi dung, ung dung. An khi khong phat gi.
+  _buildNowPlaying() {
+    const art = el("div", { class: "art" }, [icon(this._icon)]);
+    const title = el("div", { class: "title" });
+    const sub = el("div", { class: "sub" });
+    const box = el("div", { class: "now-playing" }, [art, el("div", { class: "info" }, [title, sub])]);
+    this._nowPlaying = { box, art, title, sub, picture: null };
+    this._updateNowPlaying();
+    return box;
+  }
+
+  _updateNowPlaying() {
+    if (!this._nowPlaying || !this._hass) return;
+    const view = this._nowPlaying;
+    const stateObj = this._stateObj;
+    const state = stateObj ? stateObj.state : "";
+    const active = ["playing", "paused", "buffering"].includes(state);
+    view.box.hidden = !active;
+    if (!active) return;
+    const attrs = stateObj.attributes;
+    view.title.textContent = attrs.media_title || attrs.app_name || this._name;
+    const status = state === "paused" ? "Tạm dừng" : "Đang phát";
+    view.sub.textContent = [attrs.media_artist, attrs.media_title ? attrs.app_name : "", status]
+      .filter(Boolean)
+      .join(" · ");
+    // Chi doi anh khi duong dan thay doi, de anh khong nhap nhay moi lan HA cap nhat
+    const picture = attrs.entity_picture || "";
+    if (picture !== view.picture) {
+      view.picture = picture;
+      if (picture) {
+        const img = el("img", { alt: "" });
+        img.src = this._hass.hassUrl ? this._hass.hassUrl(picture) : picture;
+        img.addEventListener("error", () => view.art.replaceChildren(icon(this._icon)));
+        view.art.replaceChildren(img);
+      } else {
+        view.art.replaceChildren(icon(this._icon));
+      }
+    }
+  }
+
+  // Vong tron dieu huong: bam bon huong / OK, hoac vuot tren vong tron de di chuyen
+  _buildPad() {
+    const pad = el("div", { class: "pad" });
+    let swipedAt = 0;
+    for (const id of ["up", "down", "left", "right"]) {
+      const btn = this._byId[id];
+      const node = el("button", { class: id, title: id }, [icon(btn.icon)]);
+      node.addEventListener("click", () => {
+        if (Date.now() - swipedAt > 400) this._press(btn);
+      });
+      pad.appendChild(node);
+    }
+    const ok = el("button", { class: "ok", title: "select", text: "OK" });
+    ok.addEventListener("click", () => {
+      if (Date.now() - swipedAt > 400) this._press(this._byId.select);
+    });
+    pad.appendChild(ok);
+
+    // Chan su kien cham lan len sheet, de vuot xuong tren vong tron khong dong pop-up
+    let start = null;
+    pad.addEventListener(
+      "touchstart",
+      (ev) => {
+        ev.stopPropagation();
+        start = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      },
+      { passive: true }
+    );
+    pad.addEventListener(
+      "touchmove",
+      (ev) => {
+        ev.stopPropagation();
+        if (ev.cancelable) ev.preventDefault();
+      },
+      { passive: false }
+    );
+    pad.addEventListener("touchend", (ev) => {
+      ev.stopPropagation();
+      if (!start) return;
+      const touch = ev.changedTouches[0];
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      start = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+      swipedAt = Date.now();
+      const id = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
+      this._press(this._byId[id]);
+    });
+    return pad;
+  }
+
+  // Mot hang nut tron lay tu cac nut cua remote
+  _buildRoundRow(ids, size, gap) {
+    const row = el("div", { class: "round-row" });
+    row.style.gap = `${gap}px`;
+    for (const id of ids) {
+      const btn = this._byId[id];
+      if (!btn) continue;
+      const btnIcon = icon(btn.icon);
+      btnIcon.style.setProperty("--mdc-icon-size", `${Math.round(size * 0.46)}px`);
+      if (btn.color) btnIcon.style.color = btn.color;
+      const node = el("button", { title: btn.label || id }, [btnIcon]);
+      node.style.width = node.style.height = `${size}px`;
+      node.addEventListener("click", () => this._press(btn));
+      row.appendChild(node);
+    }
+    return row;
+  }
+
+  _buildPadBody() {
+    const body = [this._buildNowPlaying()];
+    if (this._def.keyboard) body.push(this._buildKeyboard());
+    body.push(
+      this._buildPad(),
+      this._buildRoundRow(["menu", "play_pause", "home"], 58, 30),
+      this._buildRoundRow(["skip_backward", "skip_forward", "volume_down", "volume_up", "power"], 46, 14)
+    );
+    return body;
   }
 
   // Cac ung dung chon trong "apps": bam de mo (media_player.select_source)
@@ -1274,6 +1488,8 @@ class IrRemoteCard extends HTMLElement {
     const stateObj = this._stateObj;
     const current = stateObj && (stateObj.attributes.source || stateObj.attributes.app_name);
     const row = el("div", { class: "apps" });
+    // Keo ngang de cuon hang ung dung, khong de sheet hieu la vuot dong
+    row.addEventListener("touchstart", (ev) => ev.stopPropagation(), { passive: true });
     for (const item of this._config.apps || []) {
       const app = typeof item === "string" ? { name: item } : item;
       const appIcon = app.icon || APP_ICONS[String(app.name).toLowerCase()] || DEFAULT_APP_ICON;
@@ -1552,8 +1768,9 @@ class IrRemoteCard extends HTMLElement {
       ? this._buildClimateBody()
       : this._isEntityKind
         ? this._buildEntityBody()
-        : this._groups.map((group) => this._buildGrid(group));
-    if (this._def.keyboard) body.unshift(this._buildKeyboard());
+        : this._def.layout === "pad"
+          ? this._buildPadBody()
+          : this._groups.map((group) => this._buildGrid(group));
     if ((this._config.apps || []).length) body.push(this._buildApps());
     this._updateControls();
     const sheet = el("div", { class: "sheet" }, [
@@ -1663,6 +1880,7 @@ class IrRemoteCard extends HTMLElement {
     this._embedded = [];
     this._controlNodes = [];
     this._keyboard = null;
+    this._nowPlaying = null;
     this._childDialog = false;
     document.documentElement.style.overflow = this._prevOverflow || "";
     window.removeEventListener("popstate", this._onPopState);

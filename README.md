@@ -109,9 +109,10 @@ apps: [Netflix, YouTube, Spotify]
 - Bấm icon: bật hoặc cho ngủ.
 - Nút hàng dưới: mặc định là phát/dừng, quay lại, home. Chọn nút khác bằng `quick`.
 - Góc phải: icon cho biết đang phát hay tạm dừng.
-- Pop-up: cụm điều hướng, quay lại, nút TV, phát/dừng, tua 10 giây, âm lượng.
-- **Ô gõ chữ:** gõ tới đâu chữ hiện trên Apple TV tới đó, nhấn Enter để chọn. Ô này mờ đi khi Apple TV chưa mở chỗ nhập chữ (tìm kiếm, mật khẩu).
-- `apps`: các ứng dụng hiện thành nút trong pop-up, bấm để mở. Tên lấy theo danh sách nguồn của `media_player`. Các ứng dụng phổ biến (YouTube, Netflix, Spotify, Plex...) có sẵn icon; đặt icon riêng bằng `apps: [{ name: Infuse, icon: mdi:play-box }]`.
+- Pop-up: một vòng tròn điều hướng ở giữa (bấm bốn hướng và OK, hoặc vuốt trên vòng tròn để di chuyển), bên dưới là các nút tròn: quay lại, phát/dừng, nút TV, tua 10 giây, âm lượng, nguồn.
+- Khi đang phát hoặc tạm dừng, đầu pop-up hiện ảnh bìa, tên nội dung và ứng dụng.
+- **Ô gõ chữ:** tự hiện khi Apple TV mở chỗ nhập chữ (tìm kiếm, mật khẩu), bình thường ẩn đi. Gõ tới đâu chữ hiện trên Apple TV tới đó, nhấn Enter để chọn.
+- `apps`: các ứng dụng hiện thành một hàng nút cuộn ngang trong pop-up, bấm để mở. Tên lấy theo danh sách nguồn của `media_player`. Các ứng dụng phổ biến (YouTube, Netflix, Spotify, Plex...) có sẵn icon; đặt icon riêng bằng `apps: [{ name: Infuse, icon: mdi:play-box }]`.
 
 Card tự tìm entity remote và cảm biến bàn phím theo tên của `media_player` (`remote.<tên>`, `binary_sensor.<tên>_keyboard_focus`). Nếu tên khác, khai báo `remote_entity` và `keyboard_entity`.
 
