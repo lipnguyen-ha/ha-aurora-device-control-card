@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.4";
+const VERSION = "1.0.5";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -272,6 +272,7 @@ const REMOTES = {
     domain: "climate",
     name: "Điều hòa",
     icon: "mdi:air-conditioner",
+    badge_icon: "mdi:thermometer",
     color: "#5CC4EA",
     button_height: 54,
   },
@@ -432,17 +433,18 @@ const CARD_CSS = `
   .badge.show-icon { display: flex; }
   .badge.show-text {
     display: flex;
-    padding: 0 12px;
-    border-radius: 18px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 14px;
     background: rgba(255, 255, 255, 0.1);
     color: var(--primary-text-color);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
   }
   .badge.show-text ha-icon.remote, .badge.show-icon .text { display: none; }
   /* Icon tuy chon dung truoc chu trang thai (badge_icon) */
-  .badge ha-icon.extra { display: none; margin-right: 5px; --mdc-icon-size: 16px; }
+  .badge ha-icon.extra { display: none; margin-right: 4px; --mdc-icon-size: 14px; }
   .badge.show-text.has-icon ha-icon.extra { display: inline-flex; }
   /* Trang thai dang chu mau, khong co nen (camera: Online / Offline) */
   ha-card .badge.plain {
@@ -989,7 +991,7 @@ class IrRemoteCard extends HTMLElement {
     } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
       text = `${stateObj.attributes.temperature} °C`;
     }
-    const badgeIcon = !offline && !live ? this._config.badge_icon : "";
+    const badgeIcon = !offline && !live && text ? this._config.badge_icon || this._def.badge_icon : "";
     this._badge.querySelector(".extra").setAttribute("icon", badgeIcon || "");
     this._badge.classList.toggle("has-icon", !!badgeIcon);
     this._badge.querySelector(".text").textContent = text;
@@ -1408,7 +1410,7 @@ const EDITOR_LABELS = {
   color: "Màu icon (để trống = màu mặc định của loại thiết bị)",
   availability_entity: "Entity báo mất kết nối (để trống = tự động)",
   badge_entity: "Ô trạng thái góc phải: entity hiển thị (để trống = mặc định)",
-  badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = không có)",
+  badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = mặc định của loại thiết bị)",
   quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
   quick_entities: "Nút nhanh trên card",
   controls: "Nút trong pop-up",

@@ -69,7 +69,7 @@ Cũng có thể viết YAML với các tùy chọn sau:
 | `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại một màu: quạt xanh ngọc, loa và robot tím nhạt, TV và camera xanh dương, điều hòa xanh da trời |
 | `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Robot hút bụi và camera: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
 | `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, thiết bị hồng ngoại hiện icon remote |
-| `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:thermometer` |
+| `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:progress-check`. Điều hòa mặc định là `mdi:thermometer` |
 | `availability_entity` | Không | Entity dùng để biết bộ phát IR còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
 | `custom` | Không | Bộ mã hồng ngoại tự khai báo, thay cho `device` và `model` (xem bên dưới) |
 
