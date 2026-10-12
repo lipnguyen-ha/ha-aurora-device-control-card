@@ -15,7 +15,7 @@
  * Card goi action esphome.<blaster>_send_<protocol>. Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -823,7 +823,7 @@ class IrRemoteCard extends HTMLElement {
     return grid;
   }
 
-  // Noi dung pop-up cua dieu hoa: card thermostat goc cua HA + luoi nut dat san
+  // Noi dung pop-up cua dieu hoa: card thermostat goc cua HA
   _buildClimateBody() {
     const stateObj = this._stateObj;
     const attrs = (stateObj && stateObj.attributes) || {};
@@ -847,26 +847,6 @@ class IrRemoteCard extends HTMLElement {
         .catch((err) => this._notifyError(err));
     }
 
-    const modes = attrs.hvac_modes || [];
-    const presets = [{ id: "off", icon: "mdi:power", color: "#e53935", service: ["turn_off", {}] }];
-    if (modes.includes("cool")) {
-      presets.push(
-        { id: "cool_24", icon: "mdi:snowflake", label: "COOL 24", service: ["set_temperature", { hvac_mode: "cool", temperature: 24 }] },
-        { id: "cool_26", icon: "mdi:snowflake-melt", label: "COOL 26", service: ["set_temperature", { hvac_mode: "cool", temperature: 26 }] }
-      );
-    }
-    if (modes.includes("dry")) {
-      presets.push({ id: "dry", icon: "mdi:water-percent", label: "DRY", service: ["set_hvac_mode", { hvac_mode: "dry" }] });
-    }
-    if (modes.includes("fan_only")) {
-      presets.push({ id: "fan", icon: "mdi:fan", label: "FAN", service: ["set_hvac_mode", { hvac_mode: "fan_only" }] });
-    }
-    const swingModes = attrs.swing_modes || [];
-    const swing = ["both", "vertical", "on"].find((mode) => swingModes.includes(mode));
-    if (swing) {
-      presets.push({ id: "swing", icon: "mdi:arrow-oscillating", label: "SWING", service: ["set_swing_mode", { swing_mode: swing }] });
-    }
-    body.push(this._buildGrid({ columns: 3, buttons: presets }));
     return body;
   }
 

@@ -75,7 +75,7 @@ entity: climate.s06_ir_toshiba_ac
 - Bấm icon: bật hoặc tắt.
 - Ba nút hàng dưới: các chế độ đầu tiên mà điều hòa hỗ trợ (làm lạnh, hút ẩm, quạt...), chế độ đang chạy được tô màu.
 - Góc phải: nhiệt độ đang đặt.
-- Pop-up: card thermostat gốc của Home Assistant, kèm các nút đặt sẵn (tắt, lạnh 24, lạnh 26, hút ẩm, quạt, đảo gió).
+- Pop-up: card thermostat gốc của Home Assistant, có vòng chỉnh nhiệt độ, chọn chế độ, tốc độ quạt và đảo gió nếu điều hòa hỗ trợ.
 
 ## Bộ mã có sẵn
 
