@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.1";
+const VERSION = "1.0.2";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -694,6 +694,15 @@ function buttonTitle(btn) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+const HVAC_LABELS = {
+  cool: "Làm lạnh",
+  dry: "Hút ẩm",
+  fan_only: "Quạt",
+  heat: "Sưởi",
+  heat_cool: "Tự động (sưởi/lạnh)",
+  auto: "Tự động",
+};
+
 // Cac che do dieu hoa co the dat lam nut nhanh, theo thu tu uu tien
 function climateModes(stateObj) {
   const supported = (stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"];
@@ -742,13 +751,9 @@ class IrRemoteCard extends HTMLElement {
           `. Loai co san: ${Object.keys(DEVICES).join(", ")}`
       );
     }
-    if (def.kind) {
-      if (!config.entity) {
-        throw new Error(`aurora-device-control-card: loai '${def.domain}' can 'entity' (mot entity ${def.domain})`);
-      }
-    } else if (!config.blaster) {
-      throw new Error("aurora-device-control-card: thieu 'blaster' (ten node ESPHome phat IR)");
-    }
+    // Thieu entity / bo phat thi khong nem loi: nguoi dung dang chon do trong form,
+    // nem loi se lam form bi thay bang o YAML. Card hien "Chua cau hinh" va khong gui lenh.
+    this._missing = def.kind ? !config.entity : !config.blaster;
     this._config = config;
     this._def = def;
     this._groups = def.groups || (def.buttons ? [{ columns: 3, buttons: def.buttons }] : []);
@@ -932,6 +937,17 @@ class IrRemoteCard extends HTMLElement {
 
   _update() {
     if (!this._card) return;
+    if (this._missing) {
+      this._card.classList.add("offline");
+      this._card.classList.remove("on", "alert");
+      this._nameEl.textContent = this._name;
+      this._badge.querySelector(".text").textContent = this._isIrMissingText();
+      this._badge.style.color = "";
+      this._badge.classList.remove("plain", "has-icon", "show-icon");
+      this._badge.classList.add("show-text");
+      this._renderQuick();
+      return;
+    }
     const offline = this._isOffline();
     const stateObj = this._stateObj;
     const onStates = this._def.on_states;
@@ -975,6 +991,10 @@ class IrRemoteCard extends HTMLElement {
     this._renderQuick();
   }
 
+  _isIrMissingText() {
+    return this._def.kind ? "Chưa chọn entity" : "Chưa chọn bộ phát";
+  }
+
   _notifyError(err) {
     this.dispatchEvent(
       new CustomEvent("hass-notification", {
@@ -986,7 +1006,7 @@ class IrRemoteCard extends HTMLElement {
   }
 
   _callEntity(service, data = {}) {
-    if (!this._hass) return;
+    if (!this._hass || this._missing) return;
     const domain = this._config.entity.split(".")[0];
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
     this._hass
@@ -1026,7 +1046,7 @@ class IrRemoteCard extends HTMLElement {
   }
 
   _pressControl(spec) {
-    if (!this._hass) return;
+    if (!this._hass || this._missing) return;
     if (spec.confirm && !window.confirm(spec.confirm)) return;
     const action = this._controlAction(spec);
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
@@ -1064,6 +1084,7 @@ class IrRemoteCard extends HTMLElement {
 
   // Bam vao card: mo pop-up, hoac more-info neu loai nay khong co pop-up
   _openMain() {
+    if (this._missing) return;
     if (this._hasPopup) this._openPopup();
     else this._moreInfo(this._config.entity);
   }
@@ -1085,7 +1106,7 @@ class IrRemoteCard extends HTMLElement {
   }
 
   _send(btn) {
-    if (!btn || !this._hass) return;
+    if (!btn || !this._hass || this._missing) return;
     const def = this._def;
     const protocol = btn.protocol || def.protocol;
     // Giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
@@ -1454,12 +1475,7 @@ class IrRemoteCardEditor extends HTMLElement {
     } else {
       const options =
         def.kind === "climate"
-          ? climateModes(this._stateObj()).map((mode) => ({
-              value: mode,
-              label: this._hass.formatEntityState
-                ? this._hass.formatEntityState({ ...this._stateObj(), state: mode })
-                : mode,
-            }))
+          ? climateModes(this._stateObj()).map((mode) => ({ value: mode, label: HVAC_LABELS[mode] || mode }))
           : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));
       schema.push({
         name: "quick",
