@@ -42,16 +42,26 @@ Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remot
 |---|---|---|---|---|
 | `fan` | `hsv` | Quạt trần đèn HSV | NEC | Đã dùng thật |
 | `fan` | `toshiba` | Quạt Toshiba LSD10 | NEC | Đã dùng thật |
+| `fan` | `senko` | Quạt Senko (remote 12 bit) | Pronto | **Chưa thử trên quạt thật** |
+| `fan` | `mitsubishi` | Quạt Mitsubishi (R30J) | Pronto | **Chưa thử trên quạt thật** |
 | `speaker` | `lg` | Loa thanh LG | Samsung (32 bit) | Đã dùng thật |
 | `tv` | `samsung` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
 | `tv` | `lg` | TV LG | NEC | **Chưa thử trên TV thật** |
 | `tv` | `sony` | TV Sony | Sony SIRC | **Chưa thử trên TV thật** |
+| `tv` | `tcl` | TV TCL | Pronto (RCA) | **Chưa thử trên TV thật** |
+| `tv` | `panasonic` | TV Panasonic | Pronto (Kaseikyo) | **Chưa thử trên TV thật** |
+| `tv` | `toshiba` | TV Toshiba | NEC | **Chưa thử trên TV thật** |
+| `tv` | `hisense` | TV Hisense | NEC | **Chưa thử trên TV thật** |
 | `appletv` | Không có | Apple TV (entity media_player và remote) | Qua mạng, không dùng IR | Mới thêm |
 | `climate` | Không có | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
 | `vacuum` | Không có | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
 | `camera` | Không có | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
 
-Mã của TV LG và TV Sony lấy từ các bảng mã phổ biến của hai hãng, tác giả không có TV để kiểm tra. Nếu nút nào không chạy trên TV của bạn, hãy mở issue kèm tên model.
+Các mẫu ghi "chưa thử" lấy mã từ kho mã công khai ([Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB), [irdb](https://github.com/probonopd/irdb)) hoặc bảng mã phổ biến của hãng, tác giả không có thiết bị để kiểm tra. Một hãng có thể dùng nhiều bộ mã qua các đời máy, nên nếu nút nào không chạy trên thiết bị của bạn, hãy mở issue kèm tên model.
+
+- Các mẫu ghi giao thức **Pronto** gửi qua action `send_pronto` của bộ phát, không cần thêm action riêng cho từng hãng.
+- TV Toshiba đời mới chạy VIDAA do Hisense sản xuất: nếu mẫu `toshiba` không ăn, hãy thử `hisense`.
+- Mẫu `senko` dùng cho loại remote 12 bit mà nhiều quạt bán ở Việt Nam dùng chung. Quạt hãng khác cùng loại chip có thể nhận được, nhưng mỗi hãng thường đặt mã riêng.
 
 ## Cấu hình
 
@@ -231,6 +241,14 @@ api:
             repeat:
               times: 3
               wait_time: 45ms
+
+    # Dung cho: TV TCL, TV Panasonic, quat Senko, quat Mitsubishi, va nut khai bao bang "pronto"
+    - action: send_pronto
+      variables:
+        data: string
+      then:
+        - remote_transmitter.transmit_pronto:
+            data: !lambda 'return data;'
 ```
 
 ## Thêm remote hồng ngoại của riêng bạn
@@ -258,6 +276,8 @@ custom:
 ```
 
 Nút có `label` hiện icon nhỏ kèm chữ, nút không có `label` chỉ hiện icon to. `{ spacer: true }` tạo một ô trống. Từng nút có thể ghi đè `address`, `protocol`, `repeats`.
+
+Nút có mã dạng chuỗi Pronto thì khai báo `pronto: "0000 006D ..."` thay cho `command`; nút đó luôn gửi qua action `send_pronto`.
 
 Với giao thức gửi dạng `data` + `nbits` (ví dụ Sony), mỗi nút khai báo `data` thay cho `command`, và đặt `nbits` ở mức chung hoặc từng nút. Thay `buttons` bằng `groups` nếu cần nhiều lưới có số cột khác nhau: `groups: [{ columns: 4, buttons: [...] }]`.
 

@@ -17,10 +17,55 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
+
+// Cac giao thuc ESPHome khong co san (RCA, Kaseikyo, quat 12 bit...) duoc doi thanh chuoi Pronto
+// va gui bang action send_pronto, nen khong can them action moi tren bo phat.
+// pronto(): tan so (Hz) + day thoi luong micro giay (bat, tat, bat, tat...) -> chuoi Pronto.
+function pronto(frequency, timings) {
+  const list = timings.length % 2 ? [...timings, 10000] : timings;
+  const unit = 1e6 / frequency;
+  const words = [0, Math.round(1e6 / (frequency * 0.241246)), list.length / 2, 0];
+  for (const us of list) words.push(Math.max(1, Math.round(us / unit)));
+  return words.map((n) => n.toString(16).toUpperCase().padStart(4, "0")).join(" ");
+}
+
+// Day bit "1011..." -> cac cap bat/tat. one/zero: [bat, tat] cua bit 1 va bit 0.
+const bitTimings = (bits, one, zero) => [...bits].flatMap((bit) => (bit === "1" ? one : zero));
+// Byte -> 8 bit, bit thap di truoc
+const lsbBits = (byte) => [...Array(8)].map((_, i) => (byte >> i) & 1).join("");
+
+// RCA 38 kHz (TV TCL): 4 bit dia chi + 8 bit lenh, roi ban dao bit cua ca hai. Gui 2 khung nhu remote that.
+function rca(address, command) {
+  const bits =
+    lsbBits(address).slice(0, 4) + lsbBits(command) + lsbBits(~address & 0xf).slice(0, 4) + lsbBits(~command & 0xff);
+  const frame = [4000, 4000, ...bitTimings(bits, [500, 2000], [500, 1000]), 500, 8000];
+  return pronto(38000, [...frame, ...frame]);
+}
+
+// Kaseikyo cua Panasonic (37 kHz): ma hang 0x2002, thiet bi, thiet bi phu, lenh, byte kiem tra.
+function kaseikyo(device, subdevice, command) {
+  const bytes = [0x02, 0x20, device, subdevice, command, device ^ subdevice ^ command];
+  const bits = bytes.map(lsbBits).join("");
+  return pronto(37000, [3456, 1728, ...bitTimings(bits, [432, 1296], [432, 432]), 432, 74000]);
+}
+
+// Quat dung chip remote 12 bit (Senko va nhieu quat Viet Nam): bit 1 = bat dai/tat ngan, bit 0 nguoc lai.
+// Moi lan bam remote that phat khung nay 3 lan, cach nhau khoang 7,4 ms.
+function fan12(code) {
+  const frame = bitTimings(code.toString(2).padStart(12, "0"), [1280, 420], [420, 1280]);
+  frame[frame.length - 1] += 7400;
+  return pronto(38000, [...frame, ...frame, ...frame]);
+}
+
+// Quat Mitsubishi: khung 64 bit viet dang hex, bit cao di truoc.
+function mitsubishiFan(hex) {
+  const bits = [...hex].map((digit) => parseInt(digit, 16).toString(2).padStart(4, "0")).join("");
+  return pronto(38000, [2840, 1420, ...bitTimings(bits, [355, 1065], [355, 355]), 355, 10000]);
+}
 
 // Bo cuc chung cho remote TV. codes: id nut -> cac truong ma IR ({ command } hoac { data, nbits }).
 // Nut nao khong co ma thi de o trong, nen cac hang TV khac nhau van thang hang.
@@ -318,6 +363,156 @@ const REMOTES = {
     }),
   },
 
+  // Ma NEC cua TV Toshiba (dia chi 0x40). Lay tu Flipper-IRDB (CT-32F2), CHUA thu tren TV that.
+  // TV Toshiba doi moi chay VIDAA do Hisense san xuat: neu khong an thi thu mau Hisense.
+  toshiba_tv: {
+    name: "Toshiba TV",
+    icon: "mdi:television",
+    color: "#6AA9F0",
+    protocol: "nec",
+    address: nec(0x40),
+    repeats: 1,
+    button_height: 54,
+    power: "power",
+    quick: ["mute", "vol_down", "vol_up"],
+    ...tvLayout(
+      mapValues(
+        {
+          power: 0x12, source: 0x14,
+          num_1: 0x01, num_2: 0x02, num_3: 0x03, num_4: 0x04, num_5: 0x05,
+          num_6: 0x06, num_7: 0x07, num_8: 0x08, num_9: 0x09, num_0: 0x00,
+          info: 0x16,
+          vol_up: 0x1a, vol_down: 0x1e, mute: 0x10, ch_up: 0x1b, ch_down: 0x1f,
+          menu: 0x5b, return: 0x64,
+          up: 0x19, down: 0x1d, left: 0x42, right: 0x40, ok: 0x21,
+          red: 0x48, green: 0x49, yellow: 0x4a, blue: 0x4b,
+          rewind: 0x53, play: 0x67, pause: 0x6a, stop: 0x68, fast_forward: 0x0d,
+        },
+        (code) => ({ command: nec(code) })
+      )
+    ),
+  },
+
+  // Ma NEC cua TV Hisense (dia chi 0xBF00). Lay tu Flipper-IRDB (EN3Y39H, 32A4HAU), CHUA thu tren TV that.
+  hisense_tv: {
+    name: "Hisense TV",
+    icon: "mdi:television",
+    color: "#6AA9F0",
+    protocol: "nec",
+    address: 0xbf00,
+    repeats: 1,
+    button_height: 54,
+    power: "power",
+    quick: ["mute", "vol_down", "vol_up"],
+    ...tvLayout(
+      mapValues(
+        {
+          power: 0x0d, source: 0x12,
+          num_1: 0x01, num_2: 0x02, num_3: 0x03, num_4: 0x04, num_5: 0x05,
+          num_6: 0x06, num_7: 0x07, num_8: 0x08, num_9: 0x09, num_0: 0x00,
+          info: 0x0c,
+          vol_up: 0x44, vol_down: 0x43, mute: 0x0e, home: 0x20, ch_up: 0x4a, ch_down: 0x4b,
+          menu: 0x14, guide: 0x3a, return: 0x48, exit: 0x5c,
+          up: 0x16, down: 0x17, left: 0x19, right: 0x18, ok: 0x15,
+          red: 0x52, green: 0x53, yellow: 0x54, blue: 0x55,
+          rewind: 0x58, play: 0xa8, pause: 0xa9, stop: 0x5a, fast_forward: 0x59,
+        },
+        (code) => ({ command: nec(code) })
+      )
+    ),
+  },
+
+  // TV TCL dung giao thuc RCA (dia chi 0x0F), gui qua send_pronto. Lay tu Flipper-IRDB (65C635K),
+  // CHUA thu tren TV that.
+  tcl_tv: {
+    name: "TCL TV",
+    icon: "mdi:television",
+    color: "#6AA9F0",
+    button_height: 54,
+    power: "power",
+    quick: ["mute", "vol_down", "vol_up"],
+    ...tvLayout(
+      mapValues(
+        {
+          power: 0x54, source: 0xc5,
+          num_1: 0x8c, num_2: 0x4c, num_3: 0xcc, num_4: 0x2c, num_5: 0xac,
+          num_6: 0x6c, num_7: 0xec, num_8: 0x1c, num_9: 0x9c, num_0: 0x0c,
+          info: 0x3c,
+          vol_up: 0xf4, vol_down: 0x74, mute: 0xfc, home: 0x10, ch_up: 0xb4, ch_down: 0x34,
+          menu: 0x37, guide: 0x58, return: 0xe4, exit: 0x60,
+          up: 0x9a, down: 0x1a, left: 0x6a, right: 0xea, ok: 0x2f,
+          red: 0x00, green: 0x17, yellow: 0x27, blue: 0x1b,
+          rewind: 0xb8, play: 0xa8, pause: 0x98, fast_forward: 0x38,
+        },
+        (code) => ({ pronto: rca(0x0f, code) })
+      )
+    ),
+  },
+
+  // TV Panasonic dung giao thuc Kaseikyo (thiet bi 128, thiet bi phu 0), gui qua send_pronto.
+  // Lay tu irdb (Panasonic/TV/128,0), CHUA thu tren TV that.
+  panasonic_tv: {
+    name: "Panasonic TV",
+    icon: "mdi:television",
+    color: "#6AA9F0",
+    button_height: 54,
+    power: "power",
+    quick: ["mute", "vol_down", "vol_up"],
+    ...tvLayout(
+      mapValues(
+        {
+          power: 61, source: 5,
+          num_1: 16, num_2: 17, num_3: 18, num_4: 19, num_5: 20,
+          num_6: 21, num_7: 22, num_8: 23, num_9: 24, num_0: 25,
+          pre_ch: 55, info: 57,
+          vol_up: 32, vol_down: 33, mute: 50, ch_up: 52, ch_down: 53,
+          menu: 82, return: 212, exit: 211,
+          up: 74, down: 75, left: 78, right: 79, ok: 73,
+          red: 112, green: 113, yellow: 114, blue: 115,
+        },
+        (code) => ({ pronto: kaseikyo(128, 0, code) })
+      )
+    ),
+  },
+
+  // Quat Senko (remote 12 bit, nhieu quat Viet Nam dung chung chip nay), gui qua send_pronto.
+  // Giai ma tu ban ghi remote that trong Flipper-IRDB (Senko TR828), CHUA thu tren quat that.
+  senko_fan: {
+    name: "Senko Fan",
+    icon: "mdi:fan",
+    color: "#5CC8BE",
+    button_height: 64,
+    power: "off",
+    quick: ["on", "swing", "timer"],
+    buttons: [
+      { id: "on", icon: "mdi:fan-plus", label: "ON/SPEED", pronto: fan12(0xd82) },
+      { id: "off", icon: "mdi:power", pronto: fan12(0xd81), color: "#e53935" },
+      { id: "swing", icon: "mdi:arrow-oscillating", label: "SWING", pronto: fan12(0xd90) },
+      { id: "mode", icon: "mdi:fan-auto", label: "MODE", pronto: fan12(0xd84) },
+      { id: "timer", icon: "mdi:timer-outline", label: "TIMER", pronto: fan12(0xd88) },
+      { id: "lamp", icon: "mdi:lightbulb-on", label: "LAMP", pronto: fan12(0xdc3) },
+    ],
+  },
+
+  // Quat Mitsubishi, gui qua send_pronto. Giai ma tu ban ghi remote that trong Flipper-IRDB (R30J-HRV),
+  // CHUA thu tren quat that.
+  mitsubishi_fan: {
+    name: "Mitsubishi Fan",
+    icon: "mdi:fan",
+    color: "#5CC8BE",
+    button_height: 64,
+    power: "power",
+    quick: ["swing", "speed", "off_timer"],
+    buttons: [
+      { id: "speed", icon: "mdi:fan-plus", label: "SPEED", pronto: mitsubishiFan("c4d3682201914005") },
+      { id: "power", icon: "mdi:power", pronto: mitsubishiFan("c4d3682201918009"), color: "#e53935" },
+      { id: "swing", icon: "mdi:arrow-oscillating", label: "SWING", pronto: mitsubishiFan("c4d368220191c00d") },
+      { id: "on_timer", icon: "mdi:timer-play-outline", label: "ON TIMER", pronto: mitsubishiFan("c4d3682201915004") },
+      { spacer: true },
+      { id: "off_timer", icon: "mdi:timer-off-outline", label: "OFF TIMER", pronto: mitsubishiFan("c4d3682201912003") },
+    ],
+  },
+
   // Apple TV: lenh di qua mang bang remote.send_command (khong dung IR), trang thai lay tu media_player.
   // Pop-up co them o go chu (apple_tv.set_keyboard_text) va cac ung dung chon trong "apps".
   appletv: {
@@ -396,9 +591,17 @@ const REMOTES = {
 // Loai thiet bi -> mau co san. Form chon theo 2 buoc: loai thiet bi, roi mau remote hong ngoai.
 // "models" tro toi cac bo ma trong REMOTES; "remote" la loai chi co mot kieu, dieu khien theo entity.
 const DEVICES = {
-  fan: { name: "Quạt", models: { hsv: "hsv_fan", toshiba: "toshiba_fan" } },
+  fan: { name: "Quạt", models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan" } },
   speaker: { name: "Loa", models: { lg: "lg_soundbar" } },
-  tv: { name: "TV", models: { samsung: "samsung_tv", lg: "lg_tv", sony: "sony_tv" } },
+  tv: { name: "TV", models: {
+      samsung: "samsung_tv",
+      lg: "lg_tv",
+      sony: "sony_tv",
+      tcl: "tcl_tv",
+      panasonic: "panasonic_tv",
+      toshiba: "toshiba_tv",
+      hisense: "hisense_tv",
+    }, },
   appletv: { name: "Apple TV", remote: "appletv" },
   climate: { name: "Điều hòa", remote: "climate" },
   vacuum: { name: "Robot hút bụi", remote: "vacuum" },
@@ -1755,14 +1958,15 @@ class IrRemoteCard extends HTMLElement {
         .catch((err) => this._notifyError(err));
       return;
     }
-    const protocol = btn.protocol || def.protocol;
-    // Giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
-    const data =
-      btn.data !== undefined
+    const protocol = btn.pronto ? "pronto" : btn.protocol || def.protocol;
+    // Chuoi Pronto dung san, giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
+    const data = btn.pronto
+      ? { data: btn.pronto }
+      : btn.data !== undefined
         ? { data: btn.data, nbits: btn.nbits ?? def.nbits }
         : { address: btn.address ?? def.address, command: btn.command };
     const repeats = btn.repeats ?? def.repeats;
-    if (repeats !== undefined) data.repeats = repeats;
+    if (repeats !== undefined && !btn.pronto) data.repeats = repeats;
 
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
     // Cac lenh IR phai cach nhau mot khoang lang. Gui lien nhau thi thiet bi coi nhu dang giu mot phim
