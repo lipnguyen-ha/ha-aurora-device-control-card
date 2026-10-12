@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.2";
+const VERSION = "1.0.3";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -489,11 +489,15 @@ const CARD_CSS = `
   /* Nut chi co icon dung chung hang voi nut co chu: thu gon lai, nhuong cho cho chu */
   .quick button.compact { flex: 0 0 48px; }
   ha-card .quick button.active { background: var(--ir-accent); color: #fff; }
-  /* Cong tac dang bat: nen trang chu den, hoac mau rieng cua nut neu co dat */
+  /* Cong tac dang bat: nen pha mau nhe, vien va icon mang mau cua nut (hoac mau cua card).
+     Khong dung nen trang de khoi nham voi card dang o trang thai BAT. */
   ha-card .quick button.active.control {
-    background: var(--control-color, #f2f2f7);
-    color: var(--control-text-color, #1c1c1e);
-    box-shadow: inset 0 0 0 1px rgba(60, 60, 67, 0.18);
+    background: color-mix(in srgb, var(--control-color, var(--ir-accent)) 24%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--control-color, var(--ir-accent)) 70%, transparent);
+  }
+  ha-card .quick button.active.control ha-icon,
+  ha-card .quick button.active.control ha-state-icon {
+    color: var(--control-color, var(--ir-accent));
   }
   button:active { transform: scale(0.95); filter: brightness(1.35); }
 `;
@@ -902,10 +906,7 @@ class IrRemoteCard extends HTMLElement {
         if (btn.control) classes.push("control");
         if (!labelled && anyLabel) classes.push("compact");
         const node = el("button", { title: btn.label || btn.id, class: classes.join(" ") }, children);
-        if (btn.control && btn.control.color) {
-          node.style.setProperty("--control-color", cssColor(btn.control.color));
-          node.style.setProperty("--control-text-color", "#fff");
-        }
+        if (btn.control && btn.control.color) node.style.setProperty("--control-color", cssColor(btn.control.color));
         node.addEventListener("click", () => this._press(btn));
         return node;
       })
