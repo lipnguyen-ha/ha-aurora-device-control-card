@@ -87,6 +87,7 @@ Nút có `label` hiện icon nhỏ kèm chữ, nút không có `label` chỉ hi�
 ## Dự án liên quan
 
 - [Aurora Home Theme](https://github.com/lipnguyen-ha/ha-aurora-home-theme): theme nền gradient, thẻ kính mờ cho Home Assistant. Card này lấy màu nền và bo góc theo theme đang dùng.
+- [WOL + Presence](https://github.com/lipnguyen-ha/ha-wol-presence): integration bật máy tính bằng Wake-on-LAN và báo máy đang thức hay ngủ, dùng được cho cả Mac.
 
 ## Giấy phép
 
