@@ -82,7 +82,7 @@ Cũng có thể viết YAML với các tùy chọn sau:
 
 ### Thiết bị hồng ngoại
 
-Remote hồng ngoại chỉ gửi lệnh một chiều, nên mặc định card không biết thiết bị đang bật hay tắt và hiện viền nét đứt. Nếu thiết bị có một entity khác báo được trạng thái (TV có kết nối mạng, ổ cắm đo điện), khai báo nó ở `entity`: card sẽ bỏ viền nét đứt và đổi màu khi thiết bị bật.
+Remote hồng ngoại chỉ gửi lệnh một chiều, nên mặc định card không biết thiết bị đang bật hay tắt, và hiện một icon remote ở góc phải để báo điều đó. Nếu thiết bị có một entity khác báo được trạng thái (TV có kết nối mạng, ổ cắm đo điện), khai báo nó ở `entity`: card sẽ đổi màu khi thiết bị bật.
 
 ```yaml
 type: custom:aurora-device-control-card

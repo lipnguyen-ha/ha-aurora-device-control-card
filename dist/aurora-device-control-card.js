@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -371,11 +371,6 @@ const CARD_CSS = `
     justify-content: space-between;
     overflow: hidden;
     transition: opacity 0.2s, background-color 0.2s;
-  }
-  /* Vien net dut: thiet bi khong co trang thai */
-  ha-card.stateless {
-    outline: 1.5px dashed rgba(144, 164, 174, 0.55);
-    outline-offset: -1.5px;
   }
   ha-card.offline { opacity: 0.45; }
   /* Camera mat ket noi: vien do thay vi lam mo */
