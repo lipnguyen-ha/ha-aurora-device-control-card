@@ -22,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "2.2.0";
+const VERSION = "2.2.1";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -2990,6 +2990,7 @@ class IrRemoteCard extends HTMLElement {
           label: quickLabel(id),
           show_label: true,
           text_only: true,
+          short_label: true,
           active: on && pct != null && Math.abs(pct - level) <= 2,
           service: ["turn_on", { brightness_pct: level }],
         };
@@ -3047,7 +3048,8 @@ class IrRemoteCard extends HTMLElement {
   }
 
   _buildQuick(buttons) {
-    const anyLabel = buttons.some((b) => b.show_label && b.label);
+    // Nhan ngan ("50%") khong can nhuong cho: cac nut chia deu chieu ngang
+    const anyLabel = buttons.some((b) => b.show_label && b.label && !b.short_label);
     const anySlider = buttons.some((b) => b.slider);
     this._quickSliders = {};
     this._quick.replaceChildren(
