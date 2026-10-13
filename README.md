@@ -2,7 +2,7 @@
 
 # Aurora Device Control Card
 
-A Lovelace card for Home Assistant that controls many kinds of devices with one consistent interface: fans, speakers and TVs that use an infrared remote (sent through an IR blaster running ESPHome), air conditioners, robot vacuums and cameras.
+A Lovelace card for Home Assistant that controls many kinds of devices with one consistent interface: fans, speakers and TVs that use an infrared remote (sent through an IR blaster running ESPHome), air conditioners, lights (including RGB), roller doors and curtains, robot vacuums and cameras.
 
 Each device needs only a few lines of configuration. The card draws the buttons on the dashboard and the full control pop-up by itself, and tells you when the device or the IR blaster loses its connection.
 
@@ -58,6 +58,8 @@ Choose in two steps: the **device type** (`device`), then the **infrared remote 
 | `tv` | `hisense` | Hisense TV | NEC | **Not tested on a real TV** |
 | `appletv` | None | Apple TV (media_player and remote entities) | Over the network, no IR | Newly added |
 | `climate` | None | Air conditioner (climate entity) | No IR codes | Tested on real hardware |
+| `light` | None | Light: on/off, dimmable, white or RGB (light entity) | No IR codes | **Not tested on a real colour light** |
+| `cover` | None | Roller door, curtain, blind, garage door (cover entity) | No IR codes | **Not tested on real hardware** |
 | `vacuum` | None | Robot vacuum (vacuum entity) | No IR codes | Tested on real hardware (Roborock) |
 | `camera` | None | Camera (camera entity) | No IR codes | Tested on real hardware (Tapo C260) |
 
@@ -75,14 +77,14 @@ You can also write YAML with the following options:
 
 | Option | Required | Description |
 |---|---|---|
-| `device` | Yes | Device type: `fan`, `speaker`, `tv`, `appletv`, `climate`, `vacuum`, `camera` |
+| `device` | Yes | Device type: `fan`, `speaker`, `tv`, `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` |
 | `model` | For `fan`, `speaker`, `tv` | Infrared remote model, see the table above. If left empty, the first model of that type is used |
 | `blaster` | For infrared devices | Name of the ESPHome node that sends IR, which is the middle part of `esphome.<blaster>_send_nec` |
-| `entity` | For `appletv`, `climate`, `vacuum`, `camera` | The device's entity. Optional for infrared devices: an entity that tells whether the device is on or off, for example the TV's `media_player` |
+| `entity` | For `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` | The device's entity. Optional for infrared devices: an entity that tells whether the device is on or off, for example the TV's `media_player` |
 | `name` | No | Display name, taken from the device by default |
 | `icon` | No | Display icon, taken from the device by default |
 | `color` | No | Icon color. Accepts a Home Assistant color name (`teal`, `purple`, `amber`...) or a CSS value (`"#5CC8BE"`). By default each type has its own color: fans teal, speakers and robot vacuums light purple, TVs and cameras blue, Apple TV pink, air conditioners sky blue |
-| `quick` | No | The quick buttons in the bottom row of the card, one or more. Infrared devices: a list of button ids, for example `[power, swing, timer]`. Air conditioners: a list of modes, for example `[cool, dry]`. Robot vacuums and cameras: a list of entity-based buttons (see below). If left empty, the device type's defaults are used |
+| `quick` | No | The quick buttons in the bottom row of the card, one or more. Infrared devices: a list of button ids, for example `[power, swing, timer]`. Air conditioners: a list of modes, for example `[cool, dry]`. Lights: brightness levels, whites and colours, for example `[b50, warm, red]`. Roller doors: `[open, stop, close]`. Robot vacuums and cameras: a list of entity-based buttons (see below). If left empty, the device type's defaults are used |
 | `hide_quick` | No | `true` to hide the quick button row. The card is then as short as a Home Assistant tile (56px), so it lines up evenly next to light and switch tiles. Tapping the card still opens the full pop-up |
 | `badge_entity` | No | Entity shown in the status box in the right corner, for example a room temperature sensor or the robot's cleaning progress. Default: air conditioners show the target temperature, infrared devices show a remote icon |
 | `badge_icon` | No | Icon placed before the text in the status box, for example `mdi:progress-check`. For air conditioners the default is `mdi:thermometer` |
@@ -149,6 +151,42 @@ entity: climate.s06_ir_toshiba_ac
 - Bottom-row buttons: the modes the air conditioner supports (cool, dry, fan...); the active mode is highlighted.
 - Right corner: the target temperature.
 - Pop-up: Home Assistant's native thermostat card, with the temperature dial, mode selection, fan speed and swing if the air conditioner supports them.
+
+### Lights
+
+The card controls a `light` entity and shows only what that light can do:
+
+```yaml
+type: custom:aurora-device-control-card
+device: light
+entity: light.living_room_led
+quick: [b50, warm, red, blue]   # optional
+```
+
+- Tap the icon: turn on or off. While a colour light is on, the icon and the card border take the colour the light is showing (unless you set `color`).
+- Right corner: the current brightness.
+- Bottom-row buttons, chosen with `quick`: brightness levels `b25`, `b50`, `b75`, `b100`; whites `warm` (2700 K), `neutral` (4000 K), `cool` (6500 K); colours `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`. Buttons the light does not support are left out. The default is `[b25, b50, b100]`; a plain on/off light has no quick buttons, so turn on `hide_quick` for it.
+- Pop-up: power button, then a brightness slider, a colour temperature slider, a colour slider with eight preset colours, and the light's effects, each shown only if the light supports it. A slider sends its command when you release it.
+- `controls` adds your own buttons below, as for robot vacuums.
+
+### Roller doors, curtains and blinds
+
+The card controls a `cover` entity, so it works with anything Home Assistant exposes as a cover: roller doors, garage doors, curtains, blinds, awnings.
+
+```yaml
+type: custom:aurora-device-control-card
+device: cover
+entity: cover.garage_door
+icon: mdi:garage               # optional; the default is a roller shutter
+```
+
+- Tap the icon: open if closed, close if open.
+- Right corner: how far it is open in percent, or the state (open, closed, opening...) when the device does not report a position.
+- Bottom-row buttons: open, stop and close (`quick: [open, stop, close]`), limited to what the device supports. The open or close button lights up while the door is moving.
+- Pop-up: large open, stop and close buttons, a position slider, and a tilt slider for blinds with slats, each shown only if the device supports it.
+- `controls` adds your own buttons below, for example the door's light or lock.
+
+A roller door opens the house, so think about who can reach the dashboard before you put this card on it.
 
 ### Robot vacuums and cameras
 

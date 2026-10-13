@@ -2,7 +2,7 @@
 
 # Aurora Device Control Card
 
-Card Lovelace cho Home Assistant, điều khiển nhiều loại thiết bị theo cùng một kiểu giao diện: quạt, loa, TV dùng remote hồng ngoại (phát qua bộ phát IR chạy ESPHome), điều hòa, robot hút bụi và camera.
+Card Lovelace cho Home Assistant, điều khiển nhiều loại thiết bị theo cùng một kiểu giao diện: quạt, loa, TV dùng remote hồng ngoại (phát qua bộ phát IR chạy ESPHome), điều hòa, đèn (kể cả đèn RGB), cửa cuốn và rèm, robot hút bụi và camera.
 
 Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up điều khiển đầy đủ, và tự báo khi thiết bị hoặc bộ phát IR mất kết nối.
 
@@ -58,6 +58,8 @@ Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remot
 | `tv` | `hisense` | TV Hisense | NEC | **Chưa thử trên TV thật** |
 | `appletv` | Không có | Apple TV (entity media_player và remote) | Qua mạng, không dùng IR | Mới thêm |
 | `climate` | Không có | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
+| `light` | Không có | Đèn: bật tắt, chỉnh sáng, trắng hoặc RGB (entity light) | Không dùng mã IR | **Chưa thử trên đèn màu thật** |
+| `cover` | Không có | Cửa cuốn, rèm, mành, cửa gara (entity cover) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
 | `vacuum` | Không có | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
 | `camera` | Không có | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
 
@@ -75,14 +77,14 @@ Cũng có thể viết YAML với các tùy chọn sau:
 
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
-| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `appletv`, `climate`, `vacuum`, `camera` |
+| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` |
 | `model` | Với `fan`, `speaker`, `tv` | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
 | `blaster` | Với thiết bị hồng ngoại | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
-| `entity` | Với `appletv`, `climate`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
+| `entity` | Với `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
 | `name` | Không | Tên hiển thị, mặc định lấy theo thiết bị |
 | `icon` | Không | Icon hiển thị, mặc định lấy theo thiết bị |
 | `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại một màu: quạt xanh ngọc, loa và robot tím nhạt, TV và camera xanh dương, Apple TV hồng, điều hòa xanh da trời |
-| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Robot hút bụi và camera: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
+| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Đèn: mức sáng, màu trắng và màu, ví dụ `[b50, warm, red]`. Cửa cuốn: `[open, stop, close]`. Robot hút bụi và camera: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
 | `hide_quick` | Không | `true` để ẩn hàng nút nhanh. Card khi đó thấp bằng một tile của Home Assistant (56px), xếp cạnh tile đèn và công tắc cho đều. Bấm vào card vẫn mở pop-up đầy đủ |
 | `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, thiết bị hồng ngoại hiện icon remote |
 | `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:progress-check`. Điều hòa mặc định là `mdi:thermometer` |
@@ -149,6 +151,42 @@ entity: climate.s06_ir_toshiba_ac
 - Nút hàng dưới: các chế độ điều hòa hỗ trợ (làm lạnh, hút ẩm, quạt...), chế độ đang chạy được tô màu.
 - Góc phải: nhiệt độ đang đặt.
 - Pop-up: card thermostat gốc của Home Assistant, có vòng chỉnh nhiệt độ, chọn chế độ, tốc độ quạt và đảo gió nếu điều hòa hỗ trợ.
+
+### Đèn
+
+Card điều khiển một entity `light` và chỉ hiện những gì đèn đó làm được:
+
+```yaml
+type: custom:aurora-device-control-card
+device: light
+entity: light.den_led_phong_khach
+quick: [b50, warm, red, blue]   # tùy chọn
+```
+
+- Bấm icon: bật hoặc tắt. Khi đèn màu đang bật, icon và viền card mang màu đèn đang phát (trừ khi bạn tự đặt `color`).
+- Góc phải: độ sáng hiện tại.
+- Nút hàng dưới, chọn bằng `quick`: mức sáng `b25`, `b50`, `b75`, `b100`; màu trắng `warm` (2700 K), `neutral` (4000 K), `cool` (6500 K); màu `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`. Nút nào đèn không hỗ trợ thì không hiện. Mặc định là `[b25, b50, b100]`; đèn chỉ bật tắt thì không có nút nhanh, nên bật `hide_quick` cho loại này.
+- Pop-up: nút nguồn, rồi thanh độ sáng, thanh nhiệt độ màu, thanh màu kèm tám màu có sẵn, và các hiệu ứng của đèn; phần nào đèn không hỗ trợ thì không hiện. Thanh trượt gửi lệnh khi bạn thả tay.
+- `controls` thêm các nút của riêng bạn ở phía dưới, giống robot hút bụi.
+
+### Cửa cuốn, rèm và mành
+
+Card điều khiển một entity `cover`, nên dùng được cho mọi thứ Home Assistant coi là cover: cửa cuốn, cửa gara, rèm, mành, mái che.
+
+```yaml
+type: custom:aurora-device-control-card
+device: cover
+entity: cover.cua_cuon
+icon: mdi:garage               # tùy chọn; mặc định là hình cửa cuốn
+```
+
+- Bấm icon: đang đóng thì mở, đang mở thì đóng.
+- Góc phải: phần trăm đang mở, hoặc trạng thái (đang mở, đã đóng...) nếu thiết bị không báo vị trí.
+- Nút hàng dưới: mở, dừng, đóng (`quick: [open, stop, close]`), chỉ gồm những nút thiết bị hỗ trợ. Nút mở hoặc đóng sáng lên khi cửa đang chạy.
+- Pop-up: ba nút lớn mở, dừng, đóng, thanh vị trí, và thanh góc lật cho mành có lá; phần nào thiết bị không hỗ trợ thì không hiện.
+- `controls` thêm các nút của riêng bạn ở phía dưới, ví dụ đèn hoặc khóa của cửa.
+
+Cửa cuốn là lối vào nhà, nên hãy cân nhắc ai mở được dashboard trước khi đặt card này lên đó.
 
 ### Robot hút bụi và camera
 

@@ -8,7 +8,7 @@
  *   blaster: sr06_t1_3s_01     # ten node ESPHome phat IR (phan giua cua esphome.<ten>_send_nec)
  *   entity: switch.o_cam_quat  # tuy chon: entity cho biet thiet bi dang bat hay tat
  *
- * Thiet bi theo entity (dieu hoa, robot hut bui, camera):
+ * Thiet bi theo entity (dieu hoa, den, cua cuon / rem, robot hut bui, camera):
  *   type: custom:aurora-device-control-card
  *   device: climate
  *   entity: climate.s06_ir_toshiba_ac
@@ -17,7 +17,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.7.0";
+const VERSION = "1.8.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -31,10 +31,33 @@ const STRINGS = {
     device_tv: "TV",
     device_appletv: "Apple TV",
     device_climate: "Air conditioner",
+    device_light: "Light",
+    device_cover: "Roller door / curtain",
     device_vacuum: "Robot vacuum",
     device_camera: "Camera",
     name_climate: "Air conditioner",
+    name_light: "Light",
+    name_cover: "Roller door",
     name_vacuum: "Robot vacuum",
+    light_brightness: "Brightness",
+    light_temperature: "Colour temperature",
+    light_color: "Colour",
+    white_warm: "Warm white",
+    white_neutral: "Neutral white",
+    white_cool: "Cool white",
+    color_red: "Red",
+    color_orange: "Orange",
+    color_yellow: "Yellow",
+    color_green: "Green",
+    color_cyan: "Cyan",
+    color_blue: "Blue",
+    color_purple: "Purple",
+    color_pink: "Pink",
+    cover_open: "Open",
+    cover_stop: "Stop",
+    cover_close: "Close",
+    cover_position: "Position",
+    cover_tilt: "Tilt",
     hvac_cool: "Cool",
     hvac_dry: "Dry",
     hvac_fan_only: "Fan only",
@@ -88,10 +111,33 @@ const STRINGS = {
     device_tv: "TV",
     device_appletv: "Apple TV",
     device_climate: "Điều hòa",
+    device_light: "Đèn",
+    device_cover: "Cửa cuốn / rèm",
     device_vacuum: "Robot hút bụi",
     device_camera: "Camera",
     name_climate: "Điều hòa",
+    name_light: "Đèn",
+    name_cover: "Cửa cuốn",
     name_vacuum: "Robot hút bụi",
+    light_brightness: "Độ sáng",
+    light_temperature: "Nhiệt độ màu",
+    light_color: "Màu",
+    white_warm: "Trắng ấm",
+    white_neutral: "Trắng trung tính",
+    white_cool: "Trắng lạnh",
+    color_red: "Đỏ",
+    color_orange: "Cam",
+    color_yellow: "Vàng",
+    color_green: "Xanh lá",
+    color_cyan: "Xanh ngọc",
+    color_blue: "Xanh dương",
+    color_purple: "Tím",
+    color_pink: "Hồng",
+    cover_open: "Mở",
+    cover_stop: "Dừng",
+    cover_close: "Đóng",
+    cover_position: "Vị trí",
+    cover_tilt: "Góc lật",
     hvac_cool: "Làm lạnh",
     hvac_dry: "Hút ẩm",
     hvac_fan_only: "Quạt",
@@ -690,6 +736,28 @@ const REMOTES = {
     button_height: 54,
   },
 
+  // Den: do sang, nhiet do mau, mau va hieu ung, hien theo kha nang cua entity light
+  light: {
+    kind: "light",
+    domain: "light",
+    name: "Light",
+    icon: "mdi:lightbulb",
+    badge_icon: "mdi:brightness-6",
+    color: "#F5C451",
+    button_height: 54,
+  },
+
+  // Cua cuon, rem, cua gara: mo / dung / dong va vi tri, hien theo kha nang cua entity cover
+  cover: {
+    kind: "cover",
+    domain: "cover",
+    name: "Roller door",
+    icon: "mdi:window-shutter",
+    color: "#8FB8DE",
+    button_height: 54,
+    on_states: ["open", "opening", "closing"],
+  },
+
   // Robot hut bui: card theo entity vacuum, nut nhanh va nut pop-up khai bao bang "quick" / "controls"
   vacuum: {
     kind: "entity",
@@ -732,6 +800,8 @@ const DEVICES = {
     }, },
   appletv: { name: "Apple TV", remote: "appletv" },
   climate: { name: "Air conditioner", remote: "climate" },
+  light: { name: "Light", remote: "light" },
+  cover: { name: "Roller door / curtain", remote: "cover" },
   vacuum: { name: "Robot vacuum", remote: "vacuum" },
   camera: { name: "Camera", remote: "camera" },
 };
@@ -939,6 +1009,15 @@ const CARD_CSS = `
     font-family: inherit;
     font-size: 12px;
     font-weight: 500;
+  }
+  /* Cham mau cua nut chon mau den */
+  .quick button .swatch {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--control-color);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   }
   .quick button span {
     overflow: hidden;
@@ -1232,6 +1311,75 @@ const POPUP_CSS = `
     --mdc-icon-size: 22px;
   }
   .btn-row.last { margin-bottom: 16px; }
+  .btn-row.tall > button { height: 72px; --mdc-icon-size: 32px; }
+  /* Nut dang co tac dung: den dang bat, cua dang mo / dang dong */
+  .btn-row > button.on {
+    border-color: color-mix(in srgb, var(--ir-accent) 70%, transparent);
+    background: color-mix(in srgb, var(--ir-accent) 24%, transparent);
+    color: var(--ir-accent);
+  }
+  /* Thanh truot (do sang, nhiet do mau, mau, vi tri cua) */
+  .slider-row { margin-bottom: 12px; }
+  .slider-head {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 6px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--secondary-text-color);
+  }
+  .slider-head .value { color: var(--primary-text-color); }
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 48px;
+    margin: 0;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 16px;
+    background: linear-gradient(to right, var(--ir-accent) var(--fill, 0%), rgba(127, 127, 127, 0.16) var(--fill, 0%));
+    outline: none;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .slider.temp { background: linear-gradient(to right, #ffb35c, #fff4e0, #cfe2ff); }
+  .slider.hue { background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 8px;
+    height: 34px;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.45);
+  }
+  .slider::-moz-range-thumb {
+    width: 8px;
+    height: 34px;
+    border: none;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.45);
+  }
+  .slider::-moz-range-track { background: none; }
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .swatches button {
+    aspect-ratio: 1;
+    min-width: 0;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
   /* Nut mo rong va phan phim phu */
   .more {
     width: 100%;
@@ -1385,9 +1533,70 @@ function climateModes(stateObj) {
   return Object.keys(HVAC_ICONS).filter((mode) => supported.includes(mode));
 }
 
+// ----- Den va cua cuon -----
+// Nut nhanh cua den: muc sang ("b25"...), mau trang theo do K, va mau
+const LIGHT_LEVELS = [25, 50, 75, 100];
+const LIGHT_WHITES = { warm: 2700, neutral: 4000, cool: 6500 };
+const LIGHT_WHITE_CSS = { warm: "#ffc47a", neutral: "#fff1dc", cool: "#dbe9ff" };
+const LIGHT_COLORS = {
+  red: [255, 59, 48],
+  orange: [255, 149, 0],
+  yellow: [255, 214, 10],
+  green: [52, 199, 89],
+  cyan: [50, 212, 222],
+  blue: [10, 132, 255],
+  purple: [175, 82, 222],
+  pink: [255, 45, 146],
+};
+// "feature" la bit trong supported_features cua cover; "state" la trang thai lam nut sang len
+const COVER_ACTIONS = {
+  open: { icon: "mdi:arrow-up", service: "open_cover", feature: 1, state: "opening" },
+  stop: { icon: "mdi:stop", service: "stop_cover", feature: 8 },
+  close: { icon: "mdi:arrow-down", service: "close_cover", feature: 2, state: "closing" },
+};
+const COVER_SET_POSITION = 4;
+const COVER_SET_TILT = 128;
+
+// Den lam duoc gi, theo supported_color_modes
+function lightSupport(stateObj) {
+  const modes = (stateObj && stateObj.attributes.supported_color_modes) || [];
+  return {
+    brightness: modes.some((mode) => mode !== "onoff"),
+    temp: modes.includes("color_temp") || modes.includes("rgbww"),
+    color: modes.some((mode) => ["hs", "xy", "rgb", "rgbw", "rgbww"].includes(mode)),
+  };
+}
+
+// Cac nut nhanh co the chon cho den / cua cuon, theo kha nang cua entity
+function quickChoices(def, stateObj) {
+  if (def.kind === "light") {
+    const support = lightSupport(stateObj);
+    return [
+      ...(support.brightness ? LIGHT_LEVELS.map((level) => `b${level}`) : []),
+      ...(support.temp ? Object.keys(LIGHT_WHITES) : []),
+      ...(support.color ? Object.keys(LIGHT_COLORS) : []),
+    ];
+  }
+  // Chua co entity thi coi nhu co du mo / dung / dong
+  const features = stateObj ? stateObj.attributes.supported_features || 0 : 11;
+  return Object.keys(COVER_ACTIONS).filter((id) => features & COVER_ACTIONS[id].feature);
+}
+
+function quickLabel(id) {
+  if (LIGHT_COLORS[id]) return tr(`color_${id}`);
+  if (LIGHT_WHITES[id]) return tr(`white_${id}`);
+  if (COVER_ACTIONS[id]) return tr(`cover_${id}`);
+  return `${id.slice(1)}%`;
+}
+
+const brightnessPct = (attrs) => (attrs.brightness != null ? Math.max(1, Math.round(attrs.brightness / 2.55)) : null);
+const sameColor = (a, b) => Array.isArray(a) && a.every((value, i) => Math.abs(value - b[i]) <= 12);
+
 // Nut nhanh mac dinh khi nguoi dung chua chon "quick"
 function defaultQuick(def, stateObj) {
   if (def.kind === "climate") return climateModes(stateObj).slice(0, 3);
+  if (def.kind === "light") return quickChoices(def, stateObj).filter((id) => ["b25", "b50", "b100"].includes(id));
+  if (def.kind === "cover") return quickChoices(def, stateObj);
   if (def.kind) return def.default_quick || [];
   return def.quick || [];
 }
@@ -1452,6 +1661,7 @@ class IrRemoteCard extends HTMLElement {
     this._updateControls();
     this._updateKeyboard();
     this._updateNowPlaying();
+    this._updateSliders();
     for (const card of this._embedded) {
       card.hass = hass;
       if (card.localName === "ha-camera-stream") card.stateObj = this._stateObj;
@@ -1472,6 +1682,11 @@ class IrRemoteCard extends HTMLElement {
 
   get _isClimate() {
     return this._def.kind === "climate";
+  }
+
+  // Loai bam icon la bat / tat (hoac mo / dong) chinh entity cua card
+  get _isToggleKind() {
+    return ["climate", "light", "cover"].includes(this._def.kind);
   }
 
   // Loai theo entity voi nut tu khai bao (vacuum, camera)
@@ -1508,7 +1723,7 @@ class IrRemoteCard extends HTMLElement {
     const iconButton = el("button", { class: "icon" }, [icon(this._icon)]);
     iconButton.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      if (this._isClimate) this._callEntity("toggle");
+      if (this._isToggleKind) this._callEntity("toggle");
       else if (this._def.transport === "remote") this._togglePower();
       else if (this._isEntityKind) this._openMain();
       else this._send(this._byId[this._def.power]);
@@ -1559,6 +1774,19 @@ class IrRemoteCard extends HTMLElement {
         control: spec,
       }));
     }
+    if (this._def.kind === "light") return this._lightQuick(chosen, stateObj);
+    if (this._def.kind === "cover") {
+      const allowed = quickChoices(this._def, stateObj);
+      return chosen
+        .filter((id) => allowed.includes(id))
+        .map((id) => ({
+          id,
+          icon: COVER_ACTIONS[id].icon,
+          label: quickLabel(id),
+          active: !!stateObj && stateObj.state === COVER_ACTIONS[id].state,
+          service: [COVER_ACTIONS[id].service, {}],
+        }));
+    }
     if (!this._isClimate) {
       return chosen.map((id) => this._byId[id]).filter(Boolean);
     }
@@ -1570,6 +1798,52 @@ class IrRemoteCard extends HTMLElement {
     }));
   }
 
+  // Nut nhanh cua den: muc sang hien bang chu, mau va mau trang hien bang cham mau
+  _lightQuick(chosen, stateObj) {
+    const attrs = (stateObj && stateObj.attributes) || {};
+    const on = !!stateObj && stateObj.state === "on";
+    const allowed = quickChoices(this._def, stateObj);
+    return chosen
+      .filter((id) => allowed.includes(id))
+      .map((id) => {
+        if (LIGHT_COLORS[id]) {
+          const rgb = LIGHT_COLORS[id];
+          return {
+            id,
+            label: quickLabel(id),
+            swatch: `rgb(${rgb.join(",")})`,
+            active: on && attrs.color_mode !== "color_temp" && sameColor(attrs.rgb_color, rgb),
+            service: ["turn_on", { rgb_color: rgb }],
+          };
+        }
+        if (LIGHT_WHITES[id]) {
+          const kelvin = this._clampKelvin(LIGHT_WHITES[id], attrs);
+          return {
+            id,
+            label: quickLabel(id),
+            swatch: LIGHT_WHITE_CSS[id],
+            active: on && attrs.color_mode === "color_temp" && Math.abs((attrs.color_temp_kelvin || 0) - kelvin) < 150,
+            service: ["turn_on", { color_temp_kelvin: kelvin }],
+          };
+        }
+        const level = Number(id.slice(1));
+        const pct = brightnessPct(attrs);
+        return {
+          id,
+          label: quickLabel(id),
+          show_label: true,
+          text_only: true,
+          active: on && pct != null && Math.abs(pct - level) <= 2,
+          service: ["turn_on", { brightness_pct: level }],
+        };
+      });
+  }
+
+  // Do K nam trong khoang den ho tro
+  _clampKelvin(kelvin, attrs) {
+    return Math.min(attrs.max_color_temp_kelvin || 6500, Math.max(attrs.min_color_temp_kelvin || 2000, kelvin));
+  }
+
   _renderQuick() {
     const buttons = this._quickButtons();
     const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}`).join(",");
@@ -1578,15 +1852,19 @@ class IrRemoteCard extends HTMLElement {
     const anyLabel = buttons.some((b) => b.show_label && b.label);
     this._quick.replaceChildren(
       ...buttons.map((btn) => {
-        const children = [btn.control ? this._controlIcon(btn.control) : icon(btn.icon)];
+        const children = [];
+        if (btn.control) children.push(this._controlIcon(btn.control));
+        else if (btn.swatch) children.push(el("span", { class: "swatch" }));
+        else if (!btn.text_only) children.push(icon(btn.icon));
         const labelled = btn.show_label && btn.label;
         if (labelled) children.push(el("span", { text: btn.label }));
         const classes = [];
         if (btn.active) classes.push("active");
-        if (btn.control) classes.push("control");
+        if (btn.control || btn.swatch) classes.push("control");
         if (!labelled && anyLabel) classes.push("compact");
         const node = el("button", { title: btn.label || btn.id, class: classes.join(" ") }, children);
         if (btn.control && btn.control.color) node.style.setProperty("--control-color", cssColor(btn.control.color));
+        if (btn.swatch) node.style.setProperty("--control-color", btn.swatch);
         node.addEventListener("click", () => this._press(btn));
         return node;
       })
@@ -1637,6 +1915,13 @@ class IrRemoteCard extends HTMLElement {
       !!stateObj &&
       (onStates ? onStates.includes(stateObj.state) : !(this._def.off_states || OFF_STATES).includes(stateObj.state));
     this._isOn = on;
+    // Den mau: icon va vien card mang mau den dang phat, tru khi nguoi dung tu dat mau
+    if (this._def.kind === "light" && !this._config.color) {
+      const rgb = on && stateObj.attributes.rgb_color;
+      const accent = rgb ? `rgb(${rgb.join(",")})` : this._color;
+      this._card.style.setProperty("--ir-accent", accent);
+      if (this._popup) this._popup.style.setProperty("--ir-accent", accent);
+    }
     const live = !!this._def.live;
     this._card.classList.toggle("offline", offline && !live);
     this._card.classList.toggle("alert", offline && live);
@@ -1662,6 +1947,13 @@ class IrRemoteCard extends HTMLElement {
         : `${badge.state} ${badge.attributes.unit_of_measurement || ""}`.trim();
     } else if (this._isClimate && stateObj && stateObj.attributes.temperature != null) {
       text = `${stateObj.attributes.temperature} °C`;
+    } else if (this._def.kind === "light" && on && stateObj.attributes.brightness != null) {
+      text = `${brightnessPct(stateObj.attributes)}%`;
+    } else if (this._def.kind === "cover" && stateObj) {
+      // Co vi tri thi hien phan tram mo, khong thi hien trang thai (Dang mo, Da dong...)
+      const position = stateObj.attributes.current_position;
+      if (position != null) text = `${position}%`;
+      else text = this._hass.formatEntityState ? this._hass.formatEntityState(stateObj) : stateObj.state;
     }
     // Thiet bi phat nhac / phim: chi hien mot icon cho biet dang phat hay tam dung (ten noi dung qua dai)
     let stateIcon = "";
@@ -2199,6 +2491,192 @@ class IrRemoteCard extends HTMLElement {
     return [this._embedCard({ type: "thermostat", entity: this._config.entity, features })];
   }
 
+  // Thanh truot trong pop-up: dang keo thi chi doi so hien thi, tha tay moi gui lenh.
+  // Sau khi tha, bo qua trang thai cu trong mot luc de thanh khong giat nguoc ve gia tri truoc do.
+  _buildSlider({ key, label, min, max, step = 1, unit = "", variant = "", send }) {
+    const value = el("span", { class: "value" });
+    const input = el("input", { type: "range", class: `slider ${variant}`.trim(), min, max, step });
+    const paint = () => {
+      input.style.setProperty("--fill", `${((Number(input.value) - min) / (max - min)) * 100}%`);
+      value.textContent = `${input.value}${unit}`;
+    };
+    input.addEventListener("input", () => {
+      input.holdUntil = Date.now() + 5000;
+      paint();
+    });
+    input.addEventListener("change", () => {
+      input.holdUntil = Date.now() + 1500;
+      send(Number(input.value));
+    });
+    input.value = min;
+    paint();
+    this._sliders[key] = { input, paint };
+    return el("div", { class: "slider-row" }, [
+      el("div", { class: "slider-head" }, [el("span", { text: label }), value]),
+      input,
+    ]);
+  }
+
+  _setSlider(key, value) {
+    const slider = this._sliders[key];
+    if (!slider || value == null || Date.now() < (slider.input.holdUntil || 0)) return;
+    slider.input.value = value;
+    slider.paint();
+  }
+
+  // Dong bo thanh truot va nut trong pop-up cua den / cua cuon voi trang thai moi
+  _updateSliders() {
+    const stateObj = this._stateObj;
+    if (!this._popup || !this._sliders || !stateObj) return;
+    const attrs = stateObj.attributes;
+    if (this._def.kind === "light") {
+      const on = stateObj.state === "on";
+      this._stateNodes.forEach(([effect, node]) => {
+        node.classList.toggle(effect === null ? "on" : "active", on && (effect === null || effect === attrs.effect));
+      });
+      this._setSlider("brightness", on ? brightnessPct(attrs) : 1);
+      this._setSlider("temp", attrs.color_temp_kelvin);
+      this._setSlider("hue", attrs.hs_color ? Math.round(attrs.hs_color[0]) : null);
+    } else {
+      this._stateNodes.forEach(([id, node]) => node.classList.toggle("on", stateObj.state === COVER_ACTIONS[id].state));
+      this._setSlider("position", attrs.current_position);
+      this._setSlider("tilt", attrs.current_tilt_position);
+    }
+  }
+
+  // Luoi nut tu khai bao bang "controls"
+  _buildControlsGrid() {
+    return this._buildGrid({
+      columns: this._config.columns || 3,
+      buttons: this._controls.map((spec) => ({
+        id: spec.entity || spec.path || spec.service,
+        label: spec.name,
+        wide: spec.wide,
+        control: spec,
+      })),
+    });
+  }
+
+  // Noi dung pop-up cua den: nut nguon, roi do sang / nhiet do mau / mau / hieu ung neu den ho tro
+  _buildLightBody() {
+    const stateObj = this._stateObj;
+    const attrs = (stateObj && stateObj.attributes) || {};
+    const support = lightSupport(stateObj);
+    this._sliders = {};
+    this._stateNodes = [];
+    const turnOn = (data) => this._callEntity("turn_on", data);
+
+    const power = el("button", { title: "Power" }, [icon("mdi:power")]);
+    power.addEventListener("click", () => this._callEntity("toggle"));
+    this._stateNodes.push([null, power]);
+    const body = [el("div", { class: "btn-row" }, [power])];
+
+    if (support.brightness) {
+      body.push(
+        this._buildSlider({
+          key: "brightness",
+          label: tr("light_brightness"),
+          min: 1,
+          max: 100,
+          unit: "%",
+          send: (value) => turnOn({ brightness_pct: value }),
+        })
+      );
+    }
+    const minKelvin = attrs.min_color_temp_kelvin || 2000;
+    const maxKelvin = attrs.max_color_temp_kelvin || 6500;
+    if (support.temp && maxKelvin > minKelvin) {
+      body.push(
+        this._buildSlider({
+          key: "temp",
+          label: tr("light_temperature"),
+          min: minKelvin,
+          max: maxKelvin,
+          step: 50,
+          unit: " K",
+          variant: "temp",
+          send: (value) => turnOn({ color_temp_kelvin: value }),
+        })
+      );
+    }
+    if (support.color) {
+      body.push(
+        this._buildSlider({
+          key: "hue",
+          label: tr("light_color"),
+          min: 0,
+          max: 360,
+          unit: "°",
+          variant: "hue",
+          send: (value) => turnOn({ hs_color: [value, 100] }),
+        })
+      );
+      const swatches = el("div", { class: "swatches" });
+      for (const [id, rgb] of Object.entries(LIGHT_COLORS)) {
+        const node = el("button", { title: quickLabel(id) });
+        node.style.background = `rgb(${rgb.join(",")})`;
+        node.addEventListener("click", () => turnOn({ rgb_color: rgb }));
+        swatches.appendChild(node);
+      }
+      body.push(swatches);
+    }
+    if ((attrs.effect_list || []).length) {
+      const effects = el("div", { class: "apps" });
+      for (const effect of attrs.effect_list) {
+        const node = el("button", { text: effect });
+        node.addEventListener("click", () => turnOn({ effect }));
+        this._stateNodes.push([effect, node]);
+        effects.appendChild(node);
+      }
+      body.push(effects);
+    }
+    if (this._controls.length) body.push(this._buildControlsGrid());
+    return body;
+  }
+
+  // Noi dung pop-up cua cua cuon / rem: mo, dung, dong, roi vi tri va goc lat neu ho tro
+  _buildCoverBody() {
+    const stateObj = this._stateObj;
+    const features = stateObj ? stateObj.attributes.supported_features || 0 : 0;
+    this._sliders = {};
+    this._stateNodes = [];
+    const body = [];
+    const row = el("div", { class: "btn-row tall" });
+    for (const id of quickChoices(this._def, stateObj)) {
+      const node = el("button", { title: quickLabel(id) }, [icon(COVER_ACTIONS[id].icon)]);
+      node.addEventListener("click", () => this._callEntity(COVER_ACTIONS[id].service));
+      this._stateNodes.push([id, node]);
+      row.appendChild(node);
+    }
+    if (this._stateNodes.length) body.push(row);
+    if (features & COVER_SET_POSITION) {
+      body.push(
+        this._buildSlider({
+          key: "position",
+          label: tr("cover_position"),
+          min: 0,
+          max: 100,
+          unit: "%",
+          send: (value) => this._callEntity("set_cover_position", { position: value }),
+        })
+      );
+    }
+    if (features & COVER_SET_TILT) {
+      body.push(
+        this._buildSlider({
+          key: "tilt",
+          label: tr("cover_tilt"),
+          min: 0,
+          max: 100,
+          unit: "%",
+          send: (value) => this._callEntity("set_cover_tilt_position", { tilt_position: value }),
+        })
+      );
+    }
+    if (this._controls.length) body.push(this._buildControlsGrid());
+    return body;
+  }
+
   // Vong dieu huong cho loai theo entity (camera xoay): bon huong la bon nut khai bao trong "pad",
   // tam la nut "center" neu co, khong thi chi la icon trang tri. Chi bam, khong co cu chi keo.
   _buildControlPad(spec) {
@@ -2240,19 +2718,7 @@ class IrRemoteCard extends HTMLElement {
     }
     const pad = this._config.pad;
     if (pad && (pad.up || pad.down || pad.left || pad.right)) body.push(this._buildControlPad(pad));
-    if (this._controls.length) {
-      body.push(
-        this._buildGrid({
-          columns: this._config.columns || 3,
-          buttons: this._controls.map((spec) => ({
-            id: spec.entity || spec.path || spec.service,
-            label: spec.name,
-            wide: spec.wide,
-            control: spec,
-          })),
-        })
-      );
-    }
+    if (this._controls.length) body.push(this._buildControlsGrid());
     return body;
   }
 
@@ -2272,13 +2738,18 @@ class IrRemoteCard extends HTMLElement {
     this._controlNodes = [];
     const body = this._isClimate
       ? this._buildClimateBody()
-      : this._isEntityKind
+      : this._def.kind === "light"
+        ? this._buildLightBody()
+        : this._def.kind === "cover"
+          ? this._buildCoverBody()
+          : this._isEntityKind
         ? this._buildEntityBody()
         : this._def.layout === "pad"
           ? this._buildPadBody()
           : this._groups.map((group) => this._buildGrid(group));
     if ((this._config.apps || []).length) body.push(this._buildApps());
     this._updateControls();
+    this._updateSliders();
     const sheet = el("div", { class: "sheet" }, [
       el("div", { class: "handle" }),
       el("div", { class: "header" }, [
@@ -2317,7 +2788,9 @@ class IrRemoteCard extends HTMLElement {
       "touchstart",
       (ev) => {
         // Chi bat dau keo khi noi dung dang o dau trang, de khong tranh voi viec cuon
-        startY = sheet.scrollTop <= 0 ? ev.touches[0].clientY : null;
+        // Keo thanh truot khong phai la vuot de dong pop-up
+        const onSlider = !!(ev.target.closest && ev.target.closest(".slider"));
+        startY = sheet.scrollTop <= 0 && !onSlider ? ev.touches[0].clientY : null;
         delta = 0;
         dragged = false;
       },
@@ -2385,6 +2858,8 @@ class IrRemoteCard extends HTMLElement {
     this._popup = null;
     this._embedded = [];
     this._controlNodes = [];
+    this._sliders = null;
+    this._stateNodes = [];
     this._keyboard = null;
     this._nowPlaying = null;
     this._childDialog = false;
@@ -2535,7 +3010,9 @@ class IrRemoteCardEditor extends HTMLElement {
       const options =
         def.kind === "climate"
           ? climateModes(this._stateObj()).map((mode) => ({ value: mode, label: tr(`hvac_${mode}`, mode) }))
-          : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));
+          : def.kind
+            ? quickChoices(def, this._stateObj()).map((id) => ({ value: id, label: quickLabel(id) }))
+            : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));
       schema.push({
         name: "quick",
         selector: { select: { multiple: true, reorder: true, mode: "dropdown", options } },
@@ -2657,7 +3134,7 @@ if (!customElements.get("aurora-device-control-card")) {
   window.customCards.push({
     type: "aurora-device-control-card",
     name: "Aurora Device Control Card",
-    description: "Control IR fans, speakers and TVs through ESPHome, plus Apple TV, air conditioners, robot vacuums and cameras",
+    description: "Control IR fans, speakers and TVs through ESPHome, plus Apple TV, air conditioners, lights, roller doors and curtains, robot vacuums and cameras",
   });
   console.info(
     `%c AURORA-DEVICE-CONTROL-CARD %c v${VERSION} `,
