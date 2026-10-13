@@ -50,7 +50,7 @@ Card không phụ thuộc Bubble Card, button-card hay card-mod.
 
 ### Chép tay
 
-1. Chép `dist/aurora-device-control-card.js` vào `/config/www/aurora-device-control-card.js`.
+1. Chép `dist/aurora-device-control-card.js` và `dist/aurora-ir-codes.js` vào `/config/www/`. File thứ hai là kho mã hồng ngoại và phải nằm cạnh file thứ nhất.
 2. Vào **Settings → Dashboards → Resources**, thêm `/local/aurora-device-control-card.js`, loại **JavaScript module**.
 
 ## Thiết bị hỗ trợ
@@ -79,6 +79,26 @@ Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remot
 | `projector` | `benq` | Máy chiếu BenQ (remote W1070) | NEC | **Chưa thử trên máy thật** |
 | `projector` | `viewsonic` | Máy chiếu ViewSonic (remote PA503W) | NEC | **Chưa thử trên máy thật** |
 | `projector` | `optoma` | Máy chiếu Optoma (remote đời cũ) | NEC | **Chưa thử trên máy thật** |
+
+### Kho mã hồng ngoại có sẵn
+
+Ngoài các mẫu trong bảng trên, IR Remote Card kèm một kho mã dựng từ [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) (CC0): khoảng 650 mục hãng và 19.000 mã cho 14 loại thiết bị: TV, quạt, loa và soundbar, máy chiếu, amply, đầu thu, hộp phát trực tuyến, đầu đĩa, đèn LED và dây LED, máy lọc không khí, máy sưởi, máy tạo ẩm, robot hút bụi và màn hình.
+
+Trong form cấu hình, chọn **loại thiết bị**, rồi **hãng**. Hãng nào có nhiều hơn một bộ mã thì hiện thêm danh sách **Bộ mã**: nhà sản xuất đổi mã qua các đời sản phẩm, nên nếu bấm không ăn, hãy thử bộ kế tiếp. Các bộ tác giả đã thử được ghi "có sẵn" và đứng đầu.
+
+```yaml
+type: custom:aurora-ir-remote-card
+device: tv
+brand: Philips
+codeset: r6-0        # tùy chọn; bỏ trống thì lấy bộ đầu tiên của hãng
+blaster: sr06_t1_3s_01
+```
+
+- Mọi mã trong kho đều gửi qua action `send_pronto` của bộ phát, nên với các mã này bộ phát chỉ cần action đó.
+- Kho mã là một file riêng (`aurora-ir-codes.js`, khoảng 1 MB) nằm cạnh file card. Nó chỉ được tải khi có card hoặc form thật sự dùng đến, nên dashboard chỉ dùng mẫu có sẵn sẽ không tải nó.
+- Phím nào card nhận ra (nguồn, âm lượng, mũi tên, số...) được xếp vào bố cục quen thuộc; các phím khác của remote giữ tên gốc và nằm ở phần phím phụ.
+- Đây là mã do cộng đồng thu lại, tác giả **chưa thử**. Một bộ mã có thể thiếu phím hoặc không đúng với máy của bạn.
+- Dựng lại kho từ bản Flipper-IRDB mới hơn: `python3 -I tools/build_ir_codes.py <thư mục Flipper-IRDB> dist/aurora-ir-codes.js`.
 
 ### Aurora Smart Device Card
 
@@ -117,6 +137,7 @@ Cũng có thể viết YAML với các tùy chọn sau:
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
 | `device` | Có | Loại thiết bị, xem hai bảng ở trên |
+| `brand`, `codeset` | Không | Thiết bị hồng ngoại: lấy mã từ kho có sẵn thay cho `model` (xem ở trên) |
 | `model` | Với thiết bị hồng ngoại | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
 | `blaster` | Với thiết bị hồng ngoại | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
 | `entity` | Với thiết bị thông minh | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |

@@ -22,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -47,6 +47,24 @@ const STRINGS = {
     device_valve: "Water valve",
     device_lawn_mower: "Lawn mower",
     device_projector: "Projector",
+    device_receiver: "AV receiver / amplifier",
+    device_stb: "Set-top box / tuner",
+    device_streamer: "Streaming box",
+    device_player: "Disc player (DVD, Blu-ray, CD)",
+    device_led: "LED light / LED strip",
+    device_purifier: "Air purifier",
+    device_heater: "Heater",
+    device_humidifier_ir: "Humidifier",
+    device_vacuum_ir: "Robot vacuum",
+    device_monitor: "Monitor",
+    label_brand: "Brand",
+    label_codeset: "Code set (if the buttons do nothing, try the next one)",
+    codeset_builtin: "built in",
+    missing_brand: "No brand selected",
+    loading_codes: "Loading codes…",
+    codes_failed: "Could not load the IR code database",
+    codes_not_found: "Code set not found",
+    ir_unsupported: "this code cannot be sent",
     name_lock: "Door lock",
     name_fan: "Fan",
     name_media_player: "Media player",
@@ -182,6 +200,24 @@ const STRINGS = {
     device_valve: "Van nước",
     device_lawn_mower: "Máy cắt cỏ",
     device_projector: "Máy chiếu",
+    device_receiver: "Amply / đầu thu AV",
+    device_stb: "Đầu thu truyền hình",
+    device_streamer: "Hộp phát trực tuyến",
+    device_player: "Đầu đĩa (DVD, Blu-ray, CD)",
+    device_led: "Đèn LED / dây LED",
+    device_purifier: "Máy lọc không khí",
+    device_heater: "Máy sưởi",
+    device_humidifier_ir: "Máy tạo ẩm",
+    device_vacuum_ir: "Robot hút bụi",
+    device_monitor: "Màn hình",
+    label_brand: "Hãng",
+    label_codeset: "Bộ mã (nếu bấm không ăn, hãy thử bộ kế tiếp)",
+    codeset_builtin: "có sẵn",
+    missing_brand: "Chưa chọn hãng",
+    loading_codes: "Đang tải mã…",
+    codes_failed: "Không tải được kho mã IR",
+    codes_not_found: "Không tìm thấy bộ mã",
+    ir_unsupported: "không gửi được mã này",
     name_lock: "Khóa cửa",
     name_fan: "Quạt",
     name_media_player: "Thiết bị phát",
@@ -384,6 +420,227 @@ function projectorLayout(codes, extras) {
     groups: [...base.groups, { columns: 3, buttons }],
     pad: { ...base.pad, extra: [{ columns: 3, buttons }] },
   };
+}
+
+// ----- Kho ma IR (Flipper-IRDB), nam trong file aurora-ir-codes.js canh file nay, chi nap khi can -----
+// Moi ma la chuoi "<giao thuc>:<dia chi hex>:<lenh hex>" hoac tin hieu tho "r:<kHz>:<bang do dai>:<chi so>".
+// Tat ca duoc doi thanh chuoi Pronto luc bam nut, nen bo phat chi can action send_pronto.
+const necFrame = (bytes, frequency, header, mark, one, zero, gap) =>
+  pronto(frequency, [...header, ...bitTimings(bytes.map(lsbBits).join(""), [mark, one], [mark, zero]), mark, gap]);
+const lowBits = (value, count) => [...Array(count)].map((_, i) => Math.floor(value / 2 ** i) % 2).join("");
+const highBits = (value, count) => [...lowBits(value, count)].reverse().join("");
+
+// Ma hoa Manchester: moi bit la hai nua, levels la chuoi muc 1 (phat) / 0 (nghi) theo don vi "unit"
+function levelTimings(levels, unit, gap) {
+  const start = levels.indexOf(1);
+  const timings = [];
+  let last = null;
+  for (const level of levels.slice(start)) {
+    if (level === last) timings[timings.length - 1] += unit;
+    else timings.push(unit);
+    last = level;
+  }
+  if (timings.length % 2) timings.push(gap);
+  else timings[timings.length - 1] += gap;
+  return timings;
+}
+
+function irPronto(code, toggle) {
+  const parts = code.split(":");
+  if (parts[0] === "r") {
+    const palette = parts[2].split(".").map(Number);
+    return pronto(Number(parts[1]) * 1000, [...parts[3]].map((digit) => palette[parseInt(digit, 36)]));
+  }
+  const address = parseInt(parts[1], 16);
+  const command = parseInt(parts[2], 16);
+  const inv = (byte) => ~byte & 0xff;
+  switch (parts[0]) {
+    case "N":
+      return necFrame([address & 0xff, inv(address), command & 0xff, inv(command)], 38000, [9000, 4500], 560, 1690, 560, 40000);
+    case "X":
+      return necFrame([address & 0xff, (address >> 8) & 0xff, command & 0xff, (command >> 8) & 0xff], 38000, [9000, 4500], 560, 1690, 560, 40000);
+    case "N42":
+    case "X42": {
+      // 42 bit: dia chi 13 bit + ban dao, lenh 8 bit + ban dao; kieu mo rong gui thang 26 + 16 bit
+      const bits =
+        parts[0] === "N42"
+          ? lowBits(address, 13) + lowBits(~address & 0x1fff, 13) + lowBits(command, 8) + lowBits(inv(command), 8)
+          : lowBits(address, 26) + lowBits(command, 16);
+      return pronto(38000, [9000, 4500, ...bitTimings(bits, [560, 1690], [560, 560]), 560, 40000]);
+    }
+    case "S":
+      return necFrame([address & 0xff, address & 0xff, command & 0xff, inv(command)], 38000, [4500, 4500], 550, 1650, 550, 46000);
+    case "P": {
+      const frame = [8500, 4250, ...bitTimings([address & 0xff, inv(address), command & 0xff, inv(command)].map(lsbBits).join(""), [500, 1500], [500, 500]), 500, 26000];
+      return pronto(40000, [...frame, ...frame]);
+    }
+    case "RCA":
+      return rca(address, command);
+    case "K": {
+      // Dia chi cua Flipper: id (2 bit) | ma hang (16 bit) | nhom 1 | nhom 2; lenh 10 bit
+      const vendor = (address >> 8) & 0xffff;
+      const parity = (vendor ^ (vendor >> 4) ^ (vendor >> 8) ^ (vendor >> 12)) & 0xf;
+      const bytes = [
+        vendor & 0xff,
+        vendor >> 8,
+        parity | (((address >> 4) & 0xf) << 4),
+        (address & 0xf) | ((command & 0xf) << 4),
+        ((command >> 4) & 0x3f) | (((address >> 24) & 3) << 6),
+      ];
+      bytes.push(bytes[2] ^ bytes[3] ^ bytes[4]);
+      return necFrame(bytes, 37000, [3456, 1728], 432, 1296, 432, 74000);
+    }
+    case "S12":
+    case "S15":
+    case "S20": {
+      // Sony: 7 bit lenh roi dia chi, bit thap truoc; moi khung dai 45 ms, phat 3 lan
+      const bits = lowBits(command, 7) + lowBits(address, Number(parts[0].slice(1)) - 7);
+      const frame = [2400, 600, ...bitTimings(bits, [1200, 600], [600, 600])];
+      frame[frame.length - 1] += 45000 - frame.reduce((sum, value) => sum + value, 0);
+      return pronto(40000, [...frame, ...frame, ...frame]);
+    }
+    case "R5": {
+      // RC5: 2 bit mo dau (bit thu hai la dao cua bit 6 cua lenh), bit lat, 5 bit dia chi, 6 bit lenh
+      const bits = `1${command & 0x40 ? 0 : 1}${toggle ? 1 : 0}${highBits(address, 5)}${highBits(command & 0x3f, 6)}`;
+      const levels = [...bits].flatMap((bit) => (bit === "1" ? [0, 1] : [1, 0]));
+      return pronto(36000, levelTimings(levels, 889, 89000));
+    }
+    case "R6": {
+      // RC6 che do 0: dau khung, bit mo dau, 3 bit che do, bit lat (dai gap doi), 8 bit dia chi, 8 bit lenh
+      const half = (bit, width = 1) => (bit === "1" ? [...Array(width).fill(1), ...Array(width).fill(0)] : [...Array(width).fill(0), ...Array(width).fill(1)]);
+      const levels = [
+        ...Array(6).fill(1), 0, 0,
+        ...[..."1000"].flatMap((bit) => half(bit)),
+        ...half(toggle ? "1" : "0", 2),
+        ...[...highBits(address, 8) + highBits(command, 8)].flatMap((bit) => half(bit)),
+      ];
+      return pronto(36000, levelTimings(levels, 444, 83000));
+    }
+    default:
+      return null;
+  }
+}
+
+// Dia chi file nay, de tim file kho ma nam canh no (HACS, hoac thu muc www khi chep tay)
+const SCRIPT_URL = (() => {
+  try {
+    const match = (new Error().stack || "").match(/(https?:\/\/[^\s)]*\/)aurora-device-control-card\.js/);
+    return match ? match[1] : null;
+  } catch (err) {
+    return null;
+  }
+})();
+let CODES = (typeof window !== "undefined" && window.AURORA_IR_CODES) || null;
+let codesPromise = null;
+function loadCodes() {
+  if (CODES) return Promise.resolve(CODES);
+  if (!codesPromise) {
+    const base = SCRIPT_URL || "/hacsfiles/ha-aurora-device-control-card/";
+    codesPromise = import(`${base}aurora-ir-codes.js?v=${VERSION}`)
+      .then(() => {
+        CODES = window.AURORA_IR_CODES;
+        if (!CODES) throw new Error("empty");
+        return CODES;
+      })
+      .catch((err) => {
+        codesPromise = null;
+        throw err;
+      });
+  }
+  return codesPromise;
+}
+
+// Icon va nhan cua cac phim co id chung trong kho ma
+const IR_KEYS = {
+  power: ["mdi:power", ""], power_on: ["mdi:power-on", "ON"], power_off: ["mdi:power-off", "OFF"],
+  vol_up: ["mdi:volume-plus", ""], vol_down: ["mdi:volume-minus", ""], mute: ["mdi:volume-off", ""],
+  ch_up: ["mdi:chevron-up", "CH +"], ch_down: ["mdi:chevron-down", "CH −"],
+  up: ["mdi:arrow-up-bold", ""], down: ["mdi:arrow-down-bold", ""], left: ["mdi:arrow-left-bold", ""],
+  right: ["mdi:arrow-right-bold", ""], ok: ["mdi:circle-outline", "OK"],
+  menu: ["mdi:menu", "MENU"], home: ["mdi:home", "HOME"], return: ["mdi:arrow-u-left-top", "BACK"],
+  exit: ["mdi:exit-to-app", "EXIT"], source: ["mdi:import", "INPUT"], info: ["mdi:information-outline", "INFO"],
+  guide: ["mdi:television-guide", "GUIDE"], pre_ch: ["mdi:history", "PRE-CH"],
+  play: ["mdi:play", "PLAY"], pause: ["mdi:pause", "PAUSE"], play_pause: ["mdi:play-pause", "PLAY/PAUSE"],
+  stop: ["mdi:stop", "STOP"], rewind: ["mdi:rewind", "REW"], fast_forward: ["mdi:fast-forward", "FF"],
+  next: ["mdi:skip-next", "NEXT"], prev: ["mdi:skip-previous", "PREV"], record: ["mdi:record", "REC"],
+  red: ["mdi:circle", "RED"], green: ["mdi:circle", "GREEN"], yellow: ["mdi:circle", "YELLOW"], blue: ["mdi:circle", "BLUE"],
+  white: ["mdi:circle-outline", "WHITE"],
+  speed: ["mdi:fan", "SPEED"], speed_up: ["mdi:fan-plus", "SPEED +"], speed_down: ["mdi:fan-minus", "SPEED −"],
+  speed_1: ["mdi:fan-speed-1", "LOW"], speed_2: ["mdi:fan-speed-2", "MED"], speed_3: ["mdi:fan-speed-3", "HIGH"],
+  swing: ["mdi:arrow-oscillating", "SWING"], timer: ["mdi:timer-outline", "TIMER"], sleep: ["mdi:weather-night", "SLEEP"],
+  mode: ["mdi:tune-variant", "MODE"], light: ["mdi:lightbulb", "LIGHT"],
+  bright_up: ["mdi:brightness-7", "BRIGHT +"], bright_down: ["mdi:brightness-5", "BRIGHT −"],
+  flash: ["mdi:flash", "FLASH"], strobe: ["mdi:flash-alert", "STROBE"], fade: ["mdi:gradient-horizontal", "FADE"],
+  smooth: ["mdi:wave", "SMOOTH"],
+  temp_up: ["mdi:thermometer-plus", "TEMP +"], temp_down: ["mdi:thermometer-minus", "TEMP −"],
+  eject: ["mdi:eject", "EJECT"], subtitle: ["mdi:subtitles-outline", "SUB"], audio: ["mdi:music-note", "AUDIO"],
+  netflix: ["mdi:netflix", "NETFLIX"], youtube: ["mdi:youtube", "YOUTUBE"],
+};
+const IR_KEY_COLORS = { power: "#e53935", red: "#e53935", green: "#43a047", yellow: "#fdd835", blue: "#1e88e5" };
+for (let n = 0; n < 10; n++) IR_KEYS[`num_${n}`] = [`mdi:numeric-${n}-circle`, ""];
+// Nut nhanh mac dinh, lay bo dau tien co du phim
+const IR_QUICK = [
+  ["mute", "vol_down", "vol_up"],
+  ["speed", "swing", "timer"],
+  ["speed_1", "speed_2", "speed_3"],
+  ["bright_down", "bright_up", "white"],
+  ["play_pause", "prev", "next"],
+  ["play", "pause", "stop"],
+];
+
+// Dung dinh nghia remote (cung dang voi mot muc trong REMOTES) tu mot bo ma trong kho
+function buildDbRemote(type, brand, set) {
+  const meta = IR_DEVICES[type];
+  const full = (code) => (code.includes(":") ? code : `${set.d}:${code}`);
+  const codes = mapValues(set.k, (code) => ({ ir: full(code) }));
+  const ids = Object.keys(codes);
+  const button = (id) => {
+    const [iconName, label] = IR_KEYS[id] || ["mdi:gesture-tap-button", id.toUpperCase()];
+    return { id, icon: iconName, ...(label ? { label } : {}), ...(IR_KEY_COLORS[id] ? { color: IR_KEY_COLORS[id] } : {}), ...codes[id] };
+  };
+  const extras = (set.x || []).map(([label, code], n) => ({
+    id: `x_${label.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_${n}`,
+    icon: "mdi:gesture-tap-button",
+    label,
+    ir: full(code),
+  }));
+  const def = {
+    name: brand,
+    icon: meta.icon,
+    color: meta.color,
+    button_height: 58,
+    power: ["power", "power_on"].find((id) => codes[id]),
+    codeset: set.i,
+  };
+  const pick = IR_QUICK.find((list) => list.every((id) => codes[id]));
+  def.quick = pick || ids.filter((id) => id !== def.power).slice(0, 3);
+
+  if (["up", "down", "left", "right", "ok"].every((id) => codes[id])) {
+    // Du phim dieu huong: bo cuc vong tron nhu TV; phim khong co cho trong bo cuc do nam o phan phim phu
+    const base = tvLayout(codes);
+    const placed = new Set(base.groups.flatMap((group) => group.buttons).map((btn) => btn.id));
+    const rest = [...ids.filter((id) => !placed.has(id)).map(button), ...extras];
+    const filled = base.pad.extra.filter((group) => group.buttons.some((btn) => btn.id));
+    const more = rest.length ? [{ columns: 3, buttons: rest }] : [];
+    return { ...def, ...base, groups: [...base.groups, ...more], pad: { ...base.pad, extra: [...filled, ...more] } };
+  }
+  return { ...def, buttons: [...ids.map(button), ...extras] };
+}
+
+const dbRemoteCache = new Map();
+// Dinh nghia remote theo cau hinh { device, brand, codeset }; kho chua nap thi tra ve khung cho
+function dbRemote(config) {
+  const meta = IR_DEVICES[config.device];
+  if (!meta) return undefined;
+  const pending = (state) => ({ name: config.brand || meta.name, icon: meta.icon, color: meta.color, buttons: [], pending: state });
+  if (!config.brand) return pending("missing_brand");
+  if (!CODES) return pending("loading_codes");
+  const sets = (CODES.types[dbType(config.device)] || {})[config.brand] || [];
+  const set = sets.find((item) => item.i === config.codeset) || (config.codeset ? null : sets[0]);
+  if (!set) return pending("codes_not_found");
+  const key = `${config.device}|${config.brand}|${set.i}`;
+  if (!dbRemoteCache.has(key)) dbRemoteCache.set(key, buildDbRemote(config.device, config.brand, set));
+  return dbRemoteCache.get(key);
 }
 
 // Bo cuc chung cho remote TV. codes: id nut -> cac truong ma IR ({ command } hoac { data, nbits }).
@@ -1392,10 +1649,16 @@ const REMOTES = {
 
 // Loai thiet bi -> mau co san. Form chon theo 2 buoc: loai thiet bi, roi mau remote hong ngoai.
 // "models" tro toi cac bo ma trong REMOTES; "remote" la loai chi co mot kieu, dieu khien theo entity.
+// "brands": ten hang cua tung mau co san, trung voi ten hang trong kho ma de hai nguon nam chung mot muc.
+// Loai khong co "models" chi lay ma tu kho.
 const IR_DEVICES = {
-  fan: { name: "Fan", models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan", kdk: "kdk_fan" } },
-  speaker: { name: "Speaker", models: { lg: "lg_soundbar" } },
-  tv: { name: "TV", models: {
+  fan: { name: "Fan", icon: "mdi:fan", color: "#5CC8BE",
+    models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan", kdk: "kdk_fan" },
+    brands: { hsv: "HSV", toshiba: "Toshiba", senko: "Senko", mitsubishi: "Mitsubishi", kdk: "KDK" } },
+  speaker: { name: "Speaker", icon: "mdi:soundbar", color: "#B394E8", models: { lg: "lg_soundbar" }, brands: { lg: "LG" } },
+  tv: { name: "TV", icon: "mdi:television", color: "#6AA9F0",
+    brands: { samsung: "Samsung", lg: "LG", sony: "Sony", tcl: "TCL", panasonic: "Panasonic", toshiba: "Toshiba", hisense: "Hisense", sharp: "Sharp" },
+    models: {
       samsung: "samsung_tv",
       lg: "lg_tv",
       sony: "sony_tv",
@@ -1405,13 +1668,42 @@ const IR_DEVICES = {
       hisense: "hisense_tv",
       sharp: "sharp_tv",
     }, },
-  projector: { name: "Projector", models: {
+  projector: { name: "Projector", icon: "mdi:projector", color: "#6AA9F0",
+    brands: { epson: "Epson", benq: "BenQ", viewsonic: "ViewSonic", optoma: "Optoma" },
+    models: {
       epson: "epson_projector",
       benq: "benq_projector",
       viewsonic: "viewsonic_projector",
       optoma: "optoma_projector",
     }, },
+  receiver: { name: "AV receiver / amplifier", icon: "mdi:audio-video", color: "#B394E8", models: {} },
+  stb: { name: "Set-top box / tuner", icon: "mdi:set-top-box", color: "#6AA9F0", models: {} },
+  streamer: { name: "Streaming box", icon: "mdi:cast", color: "#F08AA8", models: {} },
+  player: { name: "Disc player", icon: "mdi:disc-player", color: "#6AA9F0", models: {} },
+  led: { name: "LED light / LED strip", icon: "mdi:led-strip-variant", color: "#F5C451", models: {} },
+  purifier: { name: "Air purifier", icon: "mdi:air-purifier", color: "#5CC8BE", models: {} },
+  heater: { name: "Heater", icon: "mdi:radiator", color: "#EF8A80", models: {} },
+  humidifier_ir: { name: "Humidifier", icon: "mdi:air-humidifier", color: "#64B5F6", models: {}, db: "humidifier" },
+  vacuum_ir: { name: "Robot vacuum", icon: "mdi:robot-vacuum", color: "#B394E8", models: {}, db: "vacuum" },
+  monitor: { name: "Monitor", icon: "mdi:monitor", color: "#6AA9F0", models: {} },
 };
+
+// Hang va bo ma cua mot loai thiet bi: mau co san dung truoc, roi toi cac bo ma trong kho
+const dbType = (device) => (IR_DEVICES[device] || {}).db || device;
+function irBrands(device) {
+  const meta = IR_DEVICES[device] || {};
+  const names = new Set(Object.values(meta.brands || {}));
+  for (const brand of Object.keys((CODES && CODES.types[dbType(device)]) || {})) names.add(brand);
+  return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+function irCodesets(device, brand) {
+  const meta = IR_DEVICES[device] || {};
+  const builtin = Object.entries(meta.brands || {})
+    .filter(([, name]) => name === brand)
+    .map(([model]) => ({ value: `builtin:${model}`, label: `${REMOTES[meta.models[model]].name} (${tr("codeset_builtin")})` }));
+  const sets = ((CODES && CODES.types[dbType(device)]) || {})[brand] || [];
+  return [...builtin, ...sets.map((set) => ({ value: set.i, label: `${set.n} (${Object.keys(set.k).length + (set.x || []).length})` }))];
+}
 
 // Thiet bi thong minh: dieu khien theo entity, card biet trang thai that
 const SMART_DEVICES = {
@@ -2147,7 +2439,11 @@ function findBlasters(hass) {
 }
 
 function resolveRemote(config, flavour) {
-  return config.custom || REMOTES[remoteKey(config, flavour)];
+  if (config.custom) return config.custom;
+  // Co "brand", hoac loai chi co trong kho ma: lay tu kho
+  const ir = flavour !== "smart" && IR_DEVICES[config.device];
+  if (ir && !config.remote && (config.brand || !Object.keys(ir.models).length)) return dbRemote(config);
+  return REMOTES[remoteKey(config, flavour)];
 }
 
 // Moi nut co ma IR cua mot remote, theo thu tu trong pop-up
@@ -2354,7 +2650,19 @@ class IrRemoteCard extends HTMLElement {
     }
     // Thieu entity / bo phat thi khong nem loi: nguoi dung dang chon do trong form,
     // nem loi se lam form bi thay bang o YAML. Card hien "Chua cau hinh" va khong gui lenh.
-    this._missing = def.kind ? !config.entity : !config.blaster;
+    this._missing = def.kind ? !config.entity : !config.blaster || !!def.pending;
+    // Kho ma chua nap: nap xong thi dung lai card voi bo ma that
+    if (def.pending === "loading_codes") {
+      loadCodes()
+        .then(() => {
+          if (this._config === config) this.setConfig(config);
+        })
+        .catch(() => {
+          if (this._config !== config) return;
+          this._def = { ...def, pending: "codes_failed" };
+          this._update();
+        });
+    }
     this._config = config;
     this._def = def;
     this._groups = def.groups || (def.buttons ? [{ columns: 3, buttons: def.buttons }] : []);
@@ -2451,7 +2759,8 @@ class IrRemoteCard extends HTMLElement {
         else this._openMain();
       } else if (this._def.transport === "remote") this._togglePower();
       else if (this._isEntityKind) this._openMain();
-      else this._send(this._byId[this._def.power]);
+      else if (this._byId[this._def.power]) this._send(this._byId[this._def.power]);
+      else this._openMain(); // bo ma khong co phim nguon
     });
 
     this._nameEl = el("div", { class: "name", text: this._name });
@@ -2720,6 +3029,7 @@ class IrRemoteCard extends HTMLElement {
   }
 
   _isIrMissingText() {
+    if (this._def.pending) return tr(this._def.pending);
     return tr(this._def.kind ? "missing_entity" : "missing_blaster");
   }
 
@@ -3138,15 +3448,22 @@ class IrRemoteCard extends HTMLElement {
         .catch((err) => this._notifyError(err));
       return;
     }
-    const protocol = btn.pronto ? "pronto" : btn.protocol || def.protocol;
+    // Ma lay tu kho: doi thanh Pronto luc bam; bit lat cua RC5 / RC6 doi sau moi lan bam
+    let prontoCode = btn.pronto;
+    if (btn.ir) {
+      this._irToggle = !this._irToggle;
+      prontoCode = irPronto(btn.ir, this._irToggle);
+      if (!prontoCode) return this._notifyError(tr("ir_unsupported"));
+    }
+    const protocol = prontoCode ? "pronto" : btn.protocol || def.protocol;
     // Chuoi Pronto dung san, giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
-    const data = btn.pronto
-      ? { data: btn.pronto }
+    const data = prontoCode
+      ? { data: prontoCode }
       : btn.data !== undefined
         ? { data: btn.data, nbits: btn.nbits ?? def.nbits }
         : { address: btn.address ?? def.address, command: btn.command };
     const repeats = btn.repeats ?? def.repeats;
-    if (repeats !== undefined && !btn.pronto) data.repeats = repeats;
+    if (repeats !== undefined && !prontoCode) data.repeats = repeats;
 
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
     // Cac lenh IR phai cach nhau mot khoang lang. Gui lien nhau thi thiet bi coi nhu dang giu mot phim
@@ -3758,6 +4075,19 @@ class IrRemoteCardEditor extends HTMLElement {
     return deviceOf(config, this.constructor.flavour);
   }
 
+  // Hang va bo ma dang chon, ke ca khi cau hinh dung mau co san (model)
+  _irChoice(config) {
+    const { device, model } = this._deviceOf(config);
+    const meta = this._devices[device] || {};
+    if (!meta.models) return {};
+    if (config.brand) {
+      const sets = irCodesets(device, config.brand).filter((set) => !set.value.startsWith("builtin:"));
+      return { brand: config.brand, codeset: config.codeset || (sets[0] || {}).value };
+    }
+    const key = model && meta.models[model] ? model : Object.keys(meta.models)[0];
+    return key ? { brand: (meta.brands || {})[key], codeset: `builtin:${key}` } : {};
+  }
+
   _schema() {
     const def = this._resolve(this._config);
     const schema = [];
@@ -3774,18 +4104,18 @@ class IrRemoteCardEditor extends HTMLElement {
           },
         },
       });
-      const models = (this._devices[device] || {}).models;
-      if (models) {
+      // Thiet bi hong ngoai: chon hang, roi chon bo ma neu hang do co nhieu bo
+      if ((this._devices[device] || {}).models) {
+        const { brand } = this._irChoice(this._config);
         schema.push({
-          name: "model",
+          name: "brand",
           required: true,
-          selector: {
-            select: {
-              mode: "dropdown",
-              options: Object.entries(models).map(([value, key]) => ({ value, label: REMOTES[key].name })),
-            },
-          },
+          selector: { select: { mode: "dropdown", options: irBrands(device) } },
         });
+        const sets = brand ? irCodesets(device, brand) : [];
+        if (sets.length > 1) {
+          schema.push({ name: "codeset", required: true, selector: { select: { mode: "dropdown", options: sets } } });
+        }
       }
     }
     if (def.kind) {
@@ -3892,10 +4222,10 @@ class IrRemoteCardEditor extends HTMLElement {
     if (def.kind === "smart" && def.domain === "lock") data.confirm = this._config.confirm !== false;
     if (!this._config.custom) {
       // Hien cau hinh cu (remote: ...) duoi dang loai thiet bi + mau
-      const { device, model } = this._deviceOf(this._config);
-      const models = (this._devices[device] || {}).models;
+      const { device } = this._deviceOf(this._config);
       data.device = device;
-      if (models) data.model = model || Object.keys(models)[0];
+      Object.assign(data, this._irChoice(this._config));
+      delete data.model;
       delete data.remote;
     }
     if (def.kind === "entity") {
@@ -3942,9 +4272,31 @@ class IrRemoteCardEditor extends HTMLElement {
         if (config.columns == null || config.columns === "") delete config.columns;
         const before = this._deviceOf(this._config);
         const deviceChanged = config.device !== before.device;
-        const models = (this._devices[config.device] || {}).models;
-        if (!models) delete config.model;
-        else if (deviceChanged || !models[config.model]) config.model = Object.keys(models)[0];
+        const meta = this._devices[config.device] || {};
+        const old = this._irChoice(this._config);
+        let irChanged = false;
+        delete config.model;
+        if (!meta.models) {
+          delete config.brand;
+          delete config.codeset;
+        } else {
+          // Doi loai thiet bi: ve hang dau tien co mau san. Doi hang: ve bo ma dau tien cua hang do.
+          if (deviceChanged) config.brand = Object.values(meta.brands || {})[0];
+          const sets = config.brand ? irCodesets(config.device, config.brand) : [];
+          if (deviceChanged || config.brand !== old.brand || !sets.some((set) => set.value === config.codeset)) {
+            config.codeset = (sets[0] || {}).value;
+          }
+          irChanged = deviceChanged || config.brand !== old.brand || config.codeset !== old.codeset;
+          if (config.codeset && config.codeset.startsWith("builtin:")) {
+            // Mau co san luu theo kieu cu (model) de cau hinh gon va card khong can nap kho ma
+            config.model = config.codeset.slice(8);
+            delete config.brand;
+            delete config.codeset;
+          } else if (!config.brand) {
+            delete config.brand;
+            delete config.codeset;
+          }
+        }
         const def = this._resolve(config);
         // "confirm" chi luu khi nguoi dung tat no; chi co o khoa cua
         if (config.confirm !== false || def.domain !== "lock") delete config.confirm;
@@ -3959,7 +4311,7 @@ class IrRemoteCardEditor extends HTMLElement {
           delete config.blaster;
           delete config.availability_entity;
         }
-        if (!config.custom && (deviceChanged || config.model !== before.model)) {
+        if (!config.custom && (deviceChanged || irChanged)) {
           // Doi loai thiet bi hoac mau remote: nut nhanh cu khong con dung, quay ve mac dinh moi
           delete config.quick;
           if (def.kind !== "entity") delete config.controls;
@@ -3983,6 +4335,11 @@ class IrRemoteCardEditor extends HTMLElement {
         );
       });
       this.appendChild(this._form);
+    }
+    // Danh sach hang va bo ma nam trong kho: nap xong thi ve lai form
+    if (!CODES && !this._codesAsked && (this._devices[this._deviceOf(this._config).device] || {}).models) {
+      this._codesAsked = true;
+      loadCodes().then(() => this._update()).catch(() => {});
     }
     this._form.hass = this._hass;
     this._form.data = this._formData();
@@ -4017,7 +4374,7 @@ if (!customElements.get("aurora-device-control-card")) {
     {
       type: "aurora-ir-remote-card",
       name: "Aurora IR Remote Card",
-      description: "One-way infrared devices sent through an ESPHome IR blaster: fans, TVs, speakers, set-top boxes, projectors",
+      description: "One-way infrared devices sent through an ESPHome IR blaster, with a built-in code database: TVs, fans, speakers, projectors, set-top boxes, LED lights and more",
     },
     {
       type: "aurora-smart-device-card",

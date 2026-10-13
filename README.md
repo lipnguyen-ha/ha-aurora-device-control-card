@@ -50,7 +50,7 @@ The card does not depend on Bubble Card, button-card or card-mod.
 
 ### Manual copy
 
-1. Copy `dist/aurora-device-control-card.js` to `/config/www/aurora-device-control-card.js`.
+1. Copy `dist/aurora-device-control-card.js` and `dist/aurora-ir-codes.js` into `/config/www/`. The second file is the infrared code database and must sit next to the first.
 2. Go to **Settings → Dashboards → Resources** and add `/local/aurora-device-control-card.js` with the type **JavaScript module**.
 
 ## Supported devices
@@ -79,6 +79,26 @@ Choose in two steps: the **device type** (`device`), then the **infrared remote 
 | `projector` | `benq` | BenQ projector (W1070 remote) | NEC | **Not tested on real hardware** |
 | `projector` | `viewsonic` | ViewSonic projector (PA503W remote) | NEC | **Not tested on real hardware** |
 | `projector` | `optoma` | Optoma projector (older remote) | NEC | **Not tested on real hardware** |
+
+### The built-in infrared code database
+
+Besides the models in the table above, the IR Remote Card ships with a code database built from [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) (CC0): about 650 brand entries and 19,000 codes across 14 device types: TVs, fans, speakers and soundbars, projectors, AV receivers, set-top boxes, streaming boxes, disc players, LED lights and strips, air purifiers, heaters, humidifiers, robot vacuums and monitors.
+
+In the configuration form, choose the **device type**, then the **brand**. When a brand has more than one code set, a **Code set** list appears: manufacturers change codes between product generations, so if the buttons do nothing, try the next set. The sets tested by the author are marked "built in" and come first.
+
+```yaml
+type: custom:aurora-ir-remote-card
+device: tv
+brand: Philips
+codeset: r6-0        # optional; the first set of the brand is used when omitted
+blaster: sr06_t1_3s_01
+```
+
+- Every code from the database is sent through the blaster's `send_pronto` action, so that is the only action the blaster needs for these.
+- The database is a separate file (`aurora-ir-codes.js`, about 1 MB) next to the card file. It is downloaded only when a card or the form actually uses it, so dashboards that use only built-in models do not load it.
+- Keys the card recognises (power, volume, arrows, numbers...) are placed in the usual layout; the remote's other keys keep their original names and appear under the extra keys.
+- These codes are community captures and have **not been tested** by the author. A set may be incomplete or wrong for your model.
+- To rebuild the database from a newer copy of Flipper-IRDB: `python3 -I tools/build_ir_codes.py <Flipper-IRDB folder> dist/aurora-ir-codes.js`.
 
 ### Aurora Smart Device Card
 
@@ -117,6 +137,7 @@ You can also write YAML with the following options:
 | Option | Required | Description |
 |---|---|---|
 | `device` | Yes | Device type, see the two tables above |
+| `brand`, `codeset` | No | Infrared devices: take the codes from the built-in database instead of `model` (see above) |
 | `model` | For infrared devices | Infrared remote model, see the table above. If left empty, the first model of that type is used |
 | `blaster` | For infrared devices | Name of the ESPHome node that sends IR, which is the middle part of `esphome.<blaster>_send_nec` |
 | `entity` | For smart devices | The device's entity. Optional for infrared devices: an entity that tells whether the device is on or off, for example the TV's `media_player` |
