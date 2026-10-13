@@ -242,7 +242,7 @@ icon: mdi:garage               # tùy chọn; mặc định là hình cửa cu�
 
 - Bấm icon: đang đóng thì mở, đang mở thì đóng.
 - Góc phải: phần trăm đang mở, hoặc trạng thái (đang mở, đã đóng...) nếu thiết bị không báo vị trí.
-- Nút hàng dưới: mở, dừng, đóng (`quick: [open, stop, close]`), chỉ gồm những nút thiết bị hỗ trợ. Nút mở hoặc đóng sáng lên khi cửa đang chạy.
+- Hàng dưới: khi thiết bị báo vị trí, đó là một **thanh trượt kéo ngay trên card** để đặt độ mở (`quick: [position]`; `tilt` thêm thanh cho góc lật). Nếu không thì là các nút mở, dừng, đóng (`quick: [open, stop, close]`), chỉ gồm những nút thiết bị hỗ trợ. Có thể trộn, ví dụ `[position, stop]`.
 - Pop-up: ba nút lớn mở, dừng, đóng, thanh vị trí, và thanh góc lật cho mành có lá; phần nào thiết bị không hỗ trợ thì không hiện.
 - `controls` thêm các nút của riêng bạn ở phía dưới, ví dụ đèn hoặc khóa của cửa.
 
@@ -272,6 +272,7 @@ entity: lock.cua_chinh
 - **Khóa cửa:** mở khóa và mở cửa đều hỏi lại trước khi làm; đặt `confirm: false` để tắt câu hỏi. Card sáng lên khi cửa đang không khóa.
 - **Mã:** nếu khóa hoặc báo động cần mã, card hỏi mã bằng hộp thoại của trình duyệt mỗi lần. Mã hiện rõ khi gõ và không được lưu lại.
 - **Ổ cắm và công tắc** (`device: switch`): bấm icon để bật tắt. Hiện công suất bằng `badge_entity`, thêm nút bằng `quick` và `controls` giống robot hút bụi.
+- **Thanh trượt trên card:** `quick` còn nhận id thanh trượt, kéo ngay trên card: `percentage` (tốc độ quạt), `humidity` (độ ẩm), `position` (van nước), `volume` (âm lượng), `temperature` (bình nóng lạnh), và `brightness` cho đèn. Quạt, máy tạo ẩm và van nước mặc định dùng thanh trượt.
 - `controls` thêm các nút của riêng bạn ở cuối mọi pop-up.
 
 ### Robot hút bụi và camera

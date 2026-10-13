@@ -22,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -57,6 +57,7 @@ const STRINGS = {
     device_humidifier_ir: "Humidifier",
     device_vacuum_ir: "Robot vacuum",
     device_monitor: "Monitor",
+    quick_slider: "slider",
     label_brand: "Brand",
     label_codeset: "Code set (if the buttons do nothing, try the next one)",
     codeset_builtin: "built in",
@@ -210,6 +211,7 @@ const STRINGS = {
     device_humidifier_ir: "Máy tạo ẩm",
     device_vacuum_ir: "Robot hút bụi",
     device_monitor: "Màn hình",
+    quick_slider: "thanh trượt",
     label_brand: "Hãng",
     label_codeset: "Bộ mã (nếu bấm không ăn, hãy thử bộ kế tiếp)",
     codeset_builtin: "có sẵn",
@@ -1372,7 +1374,8 @@ const REMOTES = {
     name: "Fan",
     icon: "mdi:fan",
     color: "#5CC8BE",
-    default_quick: ["low", "medium", "high"],
+    default_quick: ["percentage", "oscillate"],
+    quick_chips: true,
     tap: () => "toggle",
     badge: (s) => (s.state === "on" && s.attributes.percentage != null ? `${s.attributes.percentage}%` : ""),
     actions: (s, on) => {
@@ -1516,6 +1519,7 @@ const REMOTES = {
     icon: "mdi:air-humidifier",
     color: "#64B5F6",
     quick_chips: true,
+    default_quick: ["humidity"],
     tap: () => "toggle",
     badge: (s) => (s.state === "on" && s.attributes.humidity != null ? `${s.attributes.humidity}%` : ""),
     actions: (s, on) => [{ id: "power", icon: "mdi:power", service: "toggle", active: on }],
@@ -1572,6 +1576,7 @@ const REMOTES = {
     badge: (s) => (s.attributes.current_position != null ? `${s.attributes.current_position}%` : ""),
     badge_state: true,
     toggle: ["open_valve", "close_valve"],
+    default_quick: ["position"],
     tap: () => "toggle",
     actions: (s) => [
       has(s, 1) && { id: "open", icon: "mdi:valve-open", service: "open_valve", active: s.state === "opening" },
@@ -1932,6 +1937,43 @@ const CARD_CSS = `
     font-size: 12px;
     font-weight: 500;
   }
+  /* Thanh truot nam trong hang nut nhanh */
+  .quick .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 4 1 0;
+    min-width: 0;
+    height: 36px;
+    margin: 0;
+    border: none;
+    border-radius: 18px;
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--ir-accent) 60%, transparent) var(--fill, 0%),
+      var(--ir-remote-quick-background, rgba(255, 255, 255, 0.1)) var(--fill, 0%)
+    );
+    outline: none;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .quick .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 6px;
+    height: 22px;
+    border-radius: 3px;
+    background: #fff;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+  }
+  .quick .slider::-moz-range-thumb {
+    width: 6px;
+    height: 22px;
+    border: none;
+    border-radius: 3px;
+    background: #fff;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+  }
+  .quick .slider::-moz-range-track { background: none; }
   /* Cham mau cua nut chon mau den */
   .quick button .swatch {
     flex: none;
@@ -2571,6 +2613,7 @@ function quickChoices(def, stateObj) {
   if (def.kind === "light") {
     const support = lightSupport(stateObj);
     return [
+      ...(support.brightness ? ["brightness"] : []),
       ...(support.brightness ? LIGHT_LEVELS.map((level) => `b${level}`) : []),
       ...(support.temp ? Object.keys(LIGHT_WHITES) : []),
       ...(support.color ? Object.keys(LIGHT_COLORS) : []),
@@ -2578,10 +2621,18 @@ function quickChoices(def, stateObj) {
   }
   // Chua co entity thi coi nhu co du mo / dung / dong
   const features = stateObj ? stateObj.attributes.supported_features || 0 : 11;
-  return Object.keys(COVER_ACTIONS).filter((id) => features & COVER_ACTIONS[id].feature);
+  return [
+    ...(features & COVER_SET_POSITION ? ["position"] : []),
+    ...(features & COVER_SET_TILT ? ["tilt"] : []),
+    ...Object.keys(COVER_ACTIONS).filter((id) => features & COVER_ACTIONS[id].feature),
+  ];
 }
 
+// Nut nhanh la thanh truot keo ngay tren card (do sang, vi tri, goc lat)
+const QUICK_SLIDERS = { brightness: "light_brightness", position: "cover_position", tilt: "cover_tilt" };
+
 function quickLabel(id) {
+  if (QUICK_SLIDERS[id]) return `${tr(QUICK_SLIDERS[id])} (${tr("quick_slider")})`;
   if (LIGHT_COLORS[id]) return tr(`color_${id}`);
   if (LIGHT_WHITES[id]) return tr(`white_${id}`);
   if (COVER_ACTIONS[id]) return tr(`cover_${id}`);
@@ -2595,10 +2646,16 @@ const sameColor = (a, b) => Array.isArray(a) && a.every((value, i) => Math.abs(v
 function defaultQuick(def, stateObj) {
   if (def.kind === "climate") return climateModes(stateObj).slice(0, 3);
   if (def.kind === "light") return quickChoices(def, stateObj).filter((id) => ["b25", "b50", "b100"].includes(id));
-  if (def.kind === "cover") return quickChoices(def, stateObj);
+  if (def.kind === "cover") {
+    // Co vi tri thi mac dinh la thanh truot, khong thi la cac nut mo / dung / dong
+    const choices = quickChoices(def, stateObj);
+    return choices.includes("position") ? ["position"] : choices;
+  }
   if (def.kind === "smart") {
     const ids = smartActions(def, stateObj).map((action) => action.id);
-    return def.default_quick ? def.default_quick.filter((id) => ids.includes(id)) : ids.slice(0, 3);
+    if (stateObj) ids.push(...smartSliders(def, stateObj).map((slider) => slider.key));
+    const chosen = (def.default_quick || []).filter((id) => ids.includes(id));
+    return chosen.length ? chosen : ids.slice(0, 3);
   }
   if (def.kind) return def.default_quick || [];
   return def.quick || [];
@@ -2811,30 +2868,67 @@ class IrRemoteCard extends HTMLElement {
     if (this._def.kind === "light") return this._lightQuick(chosen, stateObj);
     if (this._isSmart) {
       const actions = smartActions(this._def, stateObj, this._hass);
+      const sliders = stateObj ? smartSliders(this._def, stateObj) : [];
       return chosen
-        .map((id) => actions.find((action) => action.id === id))
+        .map((id) => sliders.find((slider) => slider.key === id) || actions.find((action) => action.id === id))
         .filter(Boolean)
-        .map((action) => ({
-          id: action.id,
-          icon: action.icon,
-          label: action.label,
-          show_label: !!action.quick_only,
-          text_only: !!action.quick_only,
-          active: !!action.active,
-          smart: action.id,
-        }));
+        .map((action) =>
+          action.key
+            ? {
+                id: action.key,
+                label: tr(action.label),
+                slider: {
+                  min: action.min,
+                  max: action.max,
+                  step: action.step,
+                  unit: action.unit || "",
+                  value: action.value,
+                  send: (value) => this._callEntity(action.service, action.data(value)),
+                },
+              }
+            : {
+                id: action.id,
+                icon: action.icon,
+                label: action.label,
+                show_label: !!action.quick_only,
+                text_only: !!action.quick_only,
+                active: !!action.active,
+                smart: action.id,
+              }
+        );
     }
     if (this._def.kind === "cover") {
       const allowed = quickChoices(this._def, stateObj);
+      const attrs = (stateObj && stateObj.attributes) || {};
       return chosen
         .filter((id) => allowed.includes(id))
-        .map((id) => ({
-          id,
-          icon: COVER_ACTIONS[id].icon,
-          label: quickLabel(id),
-          active: !!stateObj && stateObj.state === COVER_ACTIONS[id].state,
-          service: [COVER_ACTIONS[id].service, {}],
-        }));
+        .map((id) => {
+          if (QUICK_SLIDERS[id]) {
+            const tilt = id === "tilt";
+            return {
+              id,
+              label: tr(QUICK_SLIDERS[id]),
+              slider: {
+                min: 0,
+                max: 100,
+                step: 1,
+                unit: "%",
+                value: tilt ? attrs.current_tilt_position : attrs.current_position,
+                send: (value) =>
+                  tilt
+                    ? this._callEntity("set_cover_tilt_position", { tilt_position: value })
+                    : this._callEntity("set_cover_position", { position: value }),
+              },
+            };
+          }
+          return {
+            id,
+            icon: COVER_ACTIONS[id].icon,
+            label: quickLabel(id),
+            active: !!stateObj && stateObj.state === COVER_ACTIONS[id].state,
+            service: [COVER_ACTIONS[id].service, {}],
+          };
+        });
     }
     if (!this._isClimate) {
       return chosen.map((id) => this._byId[id]).filter(Boolean);
@@ -2855,6 +2949,20 @@ class IrRemoteCard extends HTMLElement {
     return chosen
       .filter((id) => allowed.includes(id))
       .map((id) => {
+        if (id === "brightness") {
+          return {
+            id,
+            label: tr("light_brightness"),
+            slider: {
+              min: 1,
+              max: 100,
+              step: 1,
+              unit: "%",
+              value: on ? brightnessPct(attrs) : 1,
+              send: (value) => this._callEntity("turn_on", { brightness_pct: value }),
+            },
+          };
+        }
         if (LIGHT_COLORS[id]) {
           const rgb = LIGHT_COLORS[id];
           return {
@@ -2895,12 +3003,56 @@ class IrRemoteCard extends HTMLElement {
 
   _renderQuick() {
     const buttons = this._quickButtons();
-    const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}:${b.smart ? b.icon : ""}`).join(",");
-    if (key === this._quickKey) return;
-    this._quickKey = key;
+    const key = buttons
+      .map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}:${b.smart ? b.icon : ""}:${b.slider ? `${b.slider.min}-${b.slider.max}` : ""}`)
+      .join(",");
+    if (key !== this._quickKey) {
+      this._quickKey = key;
+      this._buildQuick(buttons);
+    }
+    // Thanh truot khong dung lai moi lan cap nhat (dang keo se bi giat): chi dat lai gia tri
+    for (const btn of buttons) {
+      const input = btn.slider && this._quickSliders[btn.id];
+      if (!input) continue;
+      input.send = btn.slider.send;
+      if (btn.slider.value == null || Date.now() < (input.holdUntil || 0)) continue;
+      input.value = btn.slider.value;
+      input.paint();
+    }
+  }
+
+  // Thanh truot trong hang nut nhanh: keo de dat gia tri, tha tay moi gui lenh
+  _quickSlider(btn) {
+    const { min, max, step, unit } = btn.slider;
+    const input = el("input", { type: "range", class: "slider", min, max, step, title: btn.label });
+    input.paint = () => input.style.setProperty("--fill", `${((Number(input.value) - min) / (max - min)) * 100}%`);
+    input.addEventListener("input", () => {
+      input.holdUntil = Date.now() + 5000;
+      input.paint();
+      // O trang thai goc phai hien gia tri dang keo
+      if (this._badge.classList.contains("show-text")) this._badge.querySelector(".text").textContent = `${input.value}${unit}`;
+    });
+    input.addEventListener("change", () => {
+      input.holdUntil = Date.now() + 1500;
+      input.send(Number(input.value));
+    });
+    // Keo thanh truot khong duoc tinh la vuot doi trang cua dashboard
+    for (const type of ["touchstart", "touchmove", "pointerdown", "mousedown"]) {
+      input.addEventListener(type, (ev) => ev.stopPropagation());
+    }
+    input.value = min;
+    input.paint();
+    this._quickSliders[btn.id] = input;
+    return input;
+  }
+
+  _buildQuick(buttons) {
     const anyLabel = buttons.some((b) => b.show_label && b.label);
+    const anySlider = buttons.some((b) => b.slider);
+    this._quickSliders = {};
     this._quick.replaceChildren(
       ...buttons.map((btn) => {
+        if (btn.slider) return this._quickSlider(btn);
         const children = [];
         if (btn.control) children.push(this._controlIcon(btn.control));
         else if (btn.swatch) children.push(el("span", { class: "swatch" }));
@@ -2910,7 +3062,7 @@ class IrRemoteCard extends HTMLElement {
         const classes = [];
         if (btn.active) classes.push("active");
         if (btn.control || btn.swatch) classes.push("control");
-        if (!labelled && anyLabel) classes.push("compact");
+        if ((!labelled && anyLabel) || anySlider) classes.push("compact");
         const node = el("button", { title: btn.label || btn.id, class: classes.join(" ") }, children);
         if (btn.control && btn.control.color) node.style.setProperty("--control-color", cssColor(btn.control.color));
         if (btn.swatch) node.style.setProperty("--control-color", btn.swatch);
@@ -3794,7 +3946,7 @@ class IrRemoteCard extends HTMLElement {
     this._stateNodes = [];
     const body = [];
     const row = el("div", { class: "btn-row tall" });
-    for (const id of quickChoices(this._def, stateObj)) {
+    for (const id of quickChoices(this._def, stateObj).filter((choice) => COVER_ACTIONS[choice])) {
       const node = el("button", { title: quickLabel(id) }, [icon(COVER_ACTIONS[id].icon)]);
       node.addEventListener("click", () => this._callEntity(COVER_ACTIONS[id].service));
       this._stateNodes.push([id, node]);
@@ -4199,7 +4351,13 @@ class IrRemoteCardEditor extends HTMLElement {
         def.kind === "climate"
           ? climateModes(this._stateObj()).map((mode) => ({ value: mode, label: tr(`hvac_${mode}`, mode) }))
           : def.kind === "smart"
-            ? smartActions(def, this._stateObj(), this._hass).map((action) => ({ value: action.id, label: action.label }))
+            ? [
+                ...(this._stateObj() ? smartSliders(def, this._stateObj()) : []).map((slider) => ({
+                  value: slider.key,
+                  label: `${tr(slider.label)} (${tr("quick_slider")})`,
+                })),
+                ...smartActions(def, this._stateObj(), this._hass).map((action) => ({ value: action.id, label: action.label })),
+              ]
           : def.kind
             ? quickChoices(def, this._stateObj()).map((id) => ({ value: id, label: quickLabel(id) }))
             : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));

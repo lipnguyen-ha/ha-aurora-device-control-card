@@ -242,7 +242,7 @@ icon: mdi:garage               # optional; the default is a roller shutter
 
 - Tap the icon: open if closed, close if open.
 - Right corner: how far it is open in percent, or the state (open, closed, opening...) when the device does not report a position.
-- Bottom-row buttons: open, stop and close (`quick: [open, stop, close]`), limited to what the device supports. The open or close button lights up while the door is moving.
+- Bottom row: when the device reports a position, a **slider you drag right on the card** to set how far it is open (`quick: [position]`; `tilt` adds one for the slats). Otherwise the open, stop and close buttons (`quick: [open, stop, close]`), limited to what the device supports. You can mix them, for example `[position, stop]`.
 - Pop-up: large open, stop and close buttons, a position slider, and a tilt slider for blinds with slats, each shown only if the device supports it.
 - `controls` adds your own buttons below, for example the door's light or lock.
 
@@ -272,6 +272,7 @@ entity: lock.front_door
 - **Locks:** unlocking and opening ask for confirmation first; set `confirm: false` to turn that off. The card is highlighted while the door is unlocked.
 - **Codes:** if a lock or an alarm needs a code, the card asks for it in a browser prompt each time. The code is shown as you type and is never stored.
 - **Sockets and switches** (`device: switch`): tapping the icon toggles the entity. Show the power draw with `badge_entity`, and add buttons with `quick` and `controls` as for robot vacuums.
+- **Sliders on the card:** `quick` also accepts a slider id, dragged right on the card: `percentage` (fan speed), `humidity`, `position` (valve), `volume`, `temperature` (water heater), and `brightness` for lights. Fans, humidifiers and valves use their slider by default.
 - `controls` adds your own buttons at the bottom of every pop-up.
 
 ### Robot vacuums and cameras
