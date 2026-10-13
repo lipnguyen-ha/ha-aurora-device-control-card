@@ -6,12 +6,27 @@ A Lovelace card for Home Assistant that controls many kinds of devices with one 
 
 Each device needs only a few lines of configuration. The card draws the buttons on the dashboard and the full control pop-up by itself, and tells you when the device or the IR blaster loses its connection.
 
+This one file registers **two cards**, so you pick the right one in the card picker:
+
+| Card | For | Example |
+|---|---|---|
+| **Aurora IR Remote Card** (`custom:aurora-ir-remote-card`) | One-way infrared devices, sent through an ESPHome IR blaster. The card cannot know the device's real state | Fans, TVs, speakers, projectors |
+| **Aurora Smart Device Card** (`custom:aurora-smart-device-card`) | Two-way devices controlled through their Home Assistant entity. The card shows the real state | Air conditioners, lights, roller doors, locks, smart fans, sockets, media players, water heaters, vacuums, cameras |
+
 ```yaml
-type: custom:aurora-device-control-card
+type: custom:aurora-ir-remote-card
 device: fan
 model: hsv
 blaster: sr06_t1_3s_01
 ```
+
+```yaml
+type: custom:aurora-smart-device-card
+device: light
+entity: light.living_room_led
+```
+
+The original card `custom:aurora-device-control-card` accepts both groups and keeps working, so existing dashboards need no change. In it, `device: fan` means the infrared fan; use the Smart Device Card for a smart fan.
 
 The card, its pop-up and its configuration form are shown in Vietnamese when Home Assistant is set to Vietnamese, and in English for every other language.
 
@@ -40,7 +55,9 @@ The card does not depend on Bubble Card, button-card or card-mod.
 
 ## Supported devices
 
-Choose in two steps: the **device type** (`device`), then the **infrared remote model** (`model`) if that type uses infrared.
+### Aurora IR Remote Card
+
+Choose in two steps: the **device type** (`device`), then the **infrared remote model** (`model`).
 
 | `device` | `model` | Device | Protocol | Status |
 |---|---|---|---|---|
@@ -48,6 +65,7 @@ Choose in two steps: the **device type** (`device`), then the **infrared remote 
 | `fan` | `toshiba` | Toshiba LSD10 fan | NEC | Tested on real hardware |
 | `fan` | `senko` | Senko fan (12-bit remote) | Pronto | **Not tested on a real fan** |
 | `fan` | `mitsubishi` | Mitsubishi fan (R30J) | Pronto | **Not tested on a real fan** |
+| `fan` | `kdk` | KDK fan (K14X5, K14Y5) | Pronto | **Not tested on a real fan** |
 | `speaker` | `lg` | LG soundbar | Samsung (32-bit) | Tested on real hardware |
 | `tv` | `samsung` | Samsung TV | Samsung (32-bit) | Tested on real hardware (Q70) |
 | `tv` | `lg` | LG TV | NEC | **Not tested on a real TV** |
@@ -56,35 +74,56 @@ Choose in two steps: the **device type** (`device`), then the **infrared remote 
 | `tv` | `panasonic` | Panasonic TV | Pronto (Kaseikyo) | **Not tested on a real TV** |
 | `tv` | `toshiba` | Toshiba TV | NEC | **Not tested on a real TV** |
 | `tv` | `hisense` | Hisense TV | NEC | **Not tested on a real TV** |
+| `tv` | `sharp` | Sharp Aquos TV | Pronto (Sharp) | **Not tested on a real TV** |
+| `projector` | `epson` | Epson projector | NEC | **Not tested on real hardware** |
+| `projector` | `benq` | BenQ projector (W1070 remote) | NEC | **Not tested on real hardware** |
+| `projector` | `viewsonic` | ViewSonic projector (PA503W remote) | NEC | **Not tested on real hardware** |
+| `projector` | `optoma` | Optoma projector (older remote) | NEC | **Not tested on real hardware** |
+
+### Aurora Smart Device Card
+
+| `device` | `model` | Device | Protocol | Status |
+|---|---|---|---|---|
 | `appletv` | None | Apple TV (media_player and remote entities) | Over the network, no IR | Newly added |
 | `climate` | None | Air conditioner (climate entity) | No IR codes | Tested on real hardware |
 | `light` | None | Light: on/off, dimmable, white or RGB (light entity) | No IR codes | **Not tested on a real colour light** |
 | `cover` | None | Roller door, curtain, blind, garage door (cover entity) | No IR codes | **Not tested on real hardware** |
 | `vacuum` | None | Robot vacuum (vacuum entity) | No IR codes | Tested on real hardware (Roborock) |
 | `camera` | None | Camera (camera entity) | No IR codes | Tested on real hardware (Tapo C260) |
+| `lock` | None | Door lock (lock entity) | No IR codes | **Not tested on real hardware** |
+| `fan` | None | Smart fan, air purifier (fan entity) | No IR codes | **Not tested on real hardware** |
+| `switch` | None | Socket, switch (switch or input_boolean entity) | No IR codes | **Not tested on real hardware** |
+| `media_player` | None | Smart speaker, smart TV (media_player entity) | No IR codes | **Not tested on real hardware** |
+| `water_heater` | None | Water heater (water_heater entity) | No IR codes | **Not tested on real hardware** |
+| `humidifier` | None | Humidifier, dehumidifier (humidifier entity) | No IR codes | **Not tested on real hardware** |
+| `alarm` | None | Alarm (alarm_control_panel entity) | No IR codes | **Not tested on real hardware** |
+| `valve` | None | Water valve (valve entity) | No IR codes | **Not tested on real hardware** |
+| `lawn_mower` | None | Robot lawn mower (lawn_mower entity) | No IR codes | **Not tested on real hardware** |
 
 The models marked "not tested" take their codes from public code databases ([Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB), [irdb](https://github.com/probonopd/irdb)) or from the manufacturer's commonly used code tables; the author has no device to check them on. A manufacturer may use several code sets across product generations, so if a button does not work on your device, please open an issue and include the model name.
 
 - The models whose protocol is **Pronto** are sent through the blaster's `send_pronto` action; no separate action per manufacturer is needed.
 - Newer Toshiba TVs running VIDAA are made by Hisense: if the `toshiba` model does not work, try `hisense`.
+- BenQ and ViewSonic projectors have separate on and off codes: the card icon turns the projector on, the `OFF` button turns it off. Epson uses one power key and asks you to press it again to turn off.
+- No public codes were found for Asia fans, Casper TVs or the set-top boxes of Vietnamese providers (VNPT, FPT, Viettel, K+). Add them with `custom` after learning the codes from the real remote.
 - The `senko` model is for the 12-bit remote type shared by many fans sold in Vietnam. Fans from other manufacturers with the same kind of chip may respond, but each manufacturer usually sets its own codes.
 
 ## Configuration
 
-Add the card from the UI: edit the dashboard, click **Add card**, and search for **Aurora Device Control Card**. The configuration form lets you choose the device type, the remote model, the IR blaster (the card lists the ESPHome nodes that have a `send_...` action by itself), the icon color, the status box in the right corner and the **quick buttons** on the card. The list of functions available for quick buttons changes with the selected device type, and you can add, remove and drag to reorder them.
+Add the card from the UI: edit the dashboard, click **Add card**, and search for **Aurora IR Remote Card** or **Aurora Smart Device Card**. The configuration form lets you choose the device type, the remote model, the IR blaster (the card lists the ESPHome nodes that have a `send_...` action by itself), the icon color, the status box in the right corner and the **quick buttons** on the card. The list of functions available for quick buttons changes with the selected device type, and you can add, remove and drag to reorder them.
 
 You can also write YAML with the following options:
 
 | Option | Required | Description |
 |---|---|---|
-| `device` | Yes | Device type: `fan`, `speaker`, `tv`, `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` |
-| `model` | For `fan`, `speaker`, `tv` | Infrared remote model, see the table above. If left empty, the first model of that type is used |
+| `device` | Yes | Device type, see the two tables above |
+| `model` | For infrared devices | Infrared remote model, see the table above. If left empty, the first model of that type is used |
 | `blaster` | For infrared devices | Name of the ESPHome node that sends IR, which is the middle part of `esphome.<blaster>_send_nec` |
-| `entity` | For `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` | The device's entity. Optional for infrared devices: an entity that tells whether the device is on or off, for example the TV's `media_player` |
+| `entity` | For smart devices | The device's entity. Optional for infrared devices: an entity that tells whether the device is on or off, for example the TV's `media_player` |
 | `name` | No | Display name, taken from the device by default |
 | `icon` | No | Display icon, taken from the device by default |
 | `color` | No | Icon color. Accepts a Home Assistant color name (`teal`, `purple`, `amber`...) or a CSS value (`"#5CC8BE"`). By default each type has its own color: fans teal, speakers and robot vacuums light purple, TVs and cameras blue, Apple TV pink, air conditioners sky blue |
-| `quick` | No | The quick buttons in the bottom row of the card, one or more. Infrared devices: a list of button ids, for example `[power, swing, timer]`. Air conditioners: a list of modes, for example `[cool, dry]`. Lights: brightness levels, whites and colours, for example `[b50, warm, red]`. Roller doors: `[open, stop, close]`. Robot vacuums and cameras: a list of entity-based buttons (see below). If left empty, the device type's defaults are used |
+| `quick` | No | The quick buttons in the bottom row of the card, one or more. Infrared devices: a list of button ids, for example `[power, swing, timer]`. Air conditioners: a list of modes, for example `[cool, dry]`. Lights: brightness levels, whites and colours, for example `[b50, warm, red]`. Roller doors: `[open, stop, close]`. Other smart devices: a list of action ids (see the table below). Robot vacuums, cameras and sockets: a list of entity-based buttons (see below). If left empty, the device type's defaults are used |
 | `hide_quick` | No | `true` to hide the quick button row. The card is then as short as a Home Assistant tile (56px), so it lines up evenly next to light and switch tiles. Tapping the card still opens the full pop-up |
 | `badge_entity` | No | Entity shown in the status box in the right corner, for example a room temperature sensor or the robot's cleaning progress. Default: air conditioners show the target temperature, infrared devices show a remote icon |
 | `badge_icon` | No | Icon placed before the text in the status box, for example `mdi:progress-check`. For air conditioners the default is `mdi:thermometer` |
@@ -187,6 +226,32 @@ icon: mdi:garage               # optional; the default is a roller shutter
 - `controls` adds your own buttons below, for example the door's light or lock.
 
 A roller door opens the house, so think about who can reach the dashboard before you put this card on it.
+
+### Locks, smart fans, media players and other smart devices
+
+These types all work the same way: the card reads what the entity supports and shows only that. `quick` takes the action ids in the table.
+
+```yaml
+type: custom:aurora-smart-device-card
+device: lock
+entity: lock.front_door
+```
+
+| `device` | Tap the icon | Right corner | Actions (`quick`) | Pop-up also has |
+|---|---|---|---|---|
+| `lock` | Unlock when locked, lock otherwise | State | `lock`, `unlock`, `open` | |
+| `fan` | On / off | Speed | `low`, `medium`, `high`, `power`, `oscillate`, `direction` | Speed slider, preset modes |
+| `media_player` | On / off, or play / pause if it has no power control | Play or pause icon | `previous`, `play_pause`, `next`, `vol_down`, `mute`, `vol_up`, `power` | What is playing, volume slider, source and sound mode |
+| `water_heater` | On / off | Target temperature | `power`, `mode:<name>` | Temperature slider, operation modes |
+| `humidifier` | On / off | Target humidity | `power`, `mode:<name>` | Humidity slider, modes |
+| `alarm` | Opens the pop-up | State | `arm_home`, `arm_away`, `arm_night`, `arm_vacation`, `disarm` | |
+| `valve` | Open / close | Position or state | `open`, `stop`, `close` | Position slider |
+| `lawn_mower` | Opens the pop-up | State | `start`, `pause`, `dock` | |
+
+- **Locks:** unlocking and opening ask for confirmation first; set `confirm: false` to turn that off. The card is highlighted while the door is unlocked.
+- **Codes:** if a lock or an alarm needs a code, the card asks for it in a browser prompt each time. The code is shown as you type and is never stored.
+- **Sockets and switches** (`device: switch`): tapping the icon toggles the entity. Show the power draw with `badge_entity`, and add buttons with `quick` and `controls` as for robot vacuums.
+- `controls` adds your own buttons at the bottom of every pop-up.
 
 ### Robot vacuums and cameras
 

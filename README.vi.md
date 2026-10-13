@@ -6,12 +6,27 @@ Card Lovelace cho Home Assistant, điều khiển nhiều loại thiết bị th
 
 Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up điều khiển đầy đủ, và tự báo khi thiết bị hoặc bộ phát IR mất kết nối.
 
+File này đăng ký **hai card**, bạn chọn đúng card trong danh sách thêm card:
+
+| Card | Dùng cho | Ví dụ |
+|---|---|---|
+| **Aurora IR Remote Card** (`custom:aurora-ir-remote-card`) | Thiết bị hồng ngoại một chiều, phát qua bộ phát IR chạy ESPHome. Card không biết được trạng thái thật của thiết bị | Quạt, TV, loa, máy chiếu |
+| **Aurora Smart Device Card** (`custom:aurora-smart-device-card`) | Thiết bị hai chiều, điều khiển qua entity của Home Assistant. Card hiện trạng thái thật | Điều hòa, đèn, cửa cuốn, khóa cửa, quạt thông minh, ổ cắm, loa và TV thông minh, bình nóng lạnh, robot hút bụi, camera |
+
 ```yaml
-type: custom:aurora-device-control-card
+type: custom:aurora-ir-remote-card
 device: fan
 model: hsv
 blaster: sr06_t1_3s_01
 ```
+
+```yaml
+type: custom:aurora-smart-device-card
+device: light
+entity: light.den_led_phong_khach
+```
+
+Card gốc `custom:aurora-device-control-card` nhận cả hai nhóm và vẫn chạy, nên dashboard đang có không cần sửa. Trong card gốc, `device: fan` là quạt hồng ngoại; quạt thông minh thì dùng Smart Device Card.
 
 Card, pop-up và form cấu hình hiện tiếng Việt khi Home Assistant đặt tiếng Việt, và hiện tiếng Anh với mọi ngôn ngữ khác.
 
@@ -40,7 +55,9 @@ Card không phụ thuộc Bubble Card, button-card hay card-mod.
 
 ## Thiết bị hỗ trợ
 
-Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remote hồng ngoại** (`model`) nếu loại đó dùng hồng ngoại.
+### Aurora IR Remote Card
+
+Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remote hồng ngoại** (`model`).
 
 | `device` | `model` | Thiết bị | Giao thức | Tình trạng |
 |---|---|---|---|---|
@@ -48,6 +65,7 @@ Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remot
 | `fan` | `toshiba` | Quạt Toshiba LSD10 | NEC | Đã dùng thật |
 | `fan` | `senko` | Quạt Senko (remote 12 bit) | Pronto | **Chưa thử trên quạt thật** |
 | `fan` | `mitsubishi` | Quạt Mitsubishi (R30J) | Pronto | **Chưa thử trên quạt thật** |
+| `fan` | `kdk` | Quạt KDK (K14X5, K14Y5) | Pronto | **Chưa thử trên quạt thật** |
 | `speaker` | `lg` | Loa thanh LG | Samsung (32 bit) | Đã dùng thật |
 | `tv` | `samsung` | TV Samsung | Samsung (32 bit) | Đã dùng thật (Q70) |
 | `tv` | `lg` | TV LG | NEC | **Chưa thử trên TV thật** |
@@ -56,35 +74,56 @@ Chọn theo hai bước: **loại thiết bị** (`device`), rồi **mẫu remot
 | `tv` | `panasonic` | TV Panasonic | Pronto (Kaseikyo) | **Chưa thử trên TV thật** |
 | `tv` | `toshiba` | TV Toshiba | NEC | **Chưa thử trên TV thật** |
 | `tv` | `hisense` | TV Hisense | NEC | **Chưa thử trên TV thật** |
+| `tv` | `sharp` | TV Sharp Aquos | Pronto (Sharp) | **Chưa thử trên TV thật** |
+| `projector` | `epson` | Máy chiếu Epson | NEC | **Chưa thử trên máy thật** |
+| `projector` | `benq` | Máy chiếu BenQ (remote W1070) | NEC | **Chưa thử trên máy thật** |
+| `projector` | `viewsonic` | Máy chiếu ViewSonic (remote PA503W) | NEC | **Chưa thử trên máy thật** |
+| `projector` | `optoma` | Máy chiếu Optoma (remote đời cũ) | NEC | **Chưa thử trên máy thật** |
+
+### Aurora Smart Device Card
+
+| `device` | `model` | Thiết bị | Giao thức | Trạng thái |
+|---|---|---|---|---|
 | `appletv` | Không có | Apple TV (entity media_player và remote) | Qua mạng, không dùng IR | Mới thêm |
 | `climate` | Không có | Điều hòa (entity climate) | Không dùng mã IR | Đã dùng thật |
 | `light` | Không có | Đèn: bật tắt, chỉnh sáng, trắng hoặc RGB (entity light) | Không dùng mã IR | **Chưa thử trên đèn màu thật** |
 | `cover` | Không có | Cửa cuốn, rèm, mành, cửa gara (entity cover) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
 | `vacuum` | Không có | Robot hút bụi (entity vacuum) | Không dùng mã IR | Đã dùng thật (Roborock) |
 | `camera` | Không có | Camera (entity camera) | Không dùng mã IR | Đã dùng thật (Tapo C260) |
+| `lock` | Không có | Khóa cửa (entity lock) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `fan` | Không có | Quạt thông minh, máy lọc không khí (entity fan) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `switch` | Không có | Ổ cắm, công tắc (entity switch hoặc input_boolean) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `media_player` | Không có | Loa thông minh, TV thông minh (entity media_player) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `water_heater` | Không có | Bình nóng lạnh (entity water_heater) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `humidifier` | Không có | Máy tạo ẩm, máy hút ẩm (entity humidifier) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `alarm` | Không có | Báo động (entity alarm_control_panel) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `valve` | Không có | Van nước (entity valve) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
+| `lawn_mower` | Không có | Robot cắt cỏ (entity lawn_mower) | Không dùng mã IR | **Chưa thử trên thiết bị thật** |
 
 Các mẫu ghi "chưa thử" lấy mã từ kho mã công khai ([Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB), [irdb](https://github.com/probonopd/irdb)) hoặc bảng mã phổ biến của hãng, tác giả không có thiết bị để kiểm tra. Một hãng có thể dùng nhiều bộ mã qua các đời máy, nên nếu nút nào không chạy trên thiết bị của bạn, hãy mở issue kèm tên model.
 
 - Các mẫu ghi giao thức **Pronto** gửi qua action `send_pronto` của bộ phát, không cần thêm action riêng cho từng hãng.
 - TV Toshiba đời mới chạy VIDAA do Hisense sản xuất: nếu mẫu `toshiba` không ăn, hãy thử `hisense`.
+- Máy chiếu BenQ và ViewSonic có mã bật và mã tắt riêng: icon của card bật máy, nút `OFF` tắt máy. Epson dùng một phím nguồn và yêu cầu bấm thêm lần nữa để tắt.
+- Không tìm được mã công khai cho quạt Asia, TV Casper và đầu thu của các nhà mạng Việt Nam (VNPT, FPT, Viettel, K+). Hãy thêm bằng `custom` sau khi học mã từ remote thật.
 - Mẫu `senko` dùng cho loại remote 12 bit mà nhiều quạt bán ở Việt Nam dùng chung. Quạt hãng khác cùng loại chip có thể nhận được, nhưng mỗi hãng thường đặt mã riêng.
 
 ## Cấu hình
 
-Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **Aurora Device Control Card**. Form cấu hình cho chọn loại thiết bị, mẫu remote, bộ phát IR (card tự liệt kê các node ESPHome có action `send_...`), màu icon, ô trạng thái góc phải và các **nút nhanh** trên card. Danh sách chức năng của nút nhanh đổi theo loại thiết bị đang chọn, thêm bớt và kéo đổi thứ tự được.
+Thêm card từ giao diện: sửa dashboard, bấm **Add card**, tìm **Aurora IR Remote Card** hoặc **Aurora Smart Device Card**. Form cấu hình cho chọn loại thiết bị, mẫu remote, bộ phát IR (card tự liệt kê các node ESPHome có action `send_...`), màu icon, ô trạng thái góc phải và các **nút nhanh** trên card. Danh sách chức năng của nút nhanh đổi theo loại thiết bị đang chọn, thêm bớt và kéo đổi thứ tự được.
 
 Cũng có thể viết YAML với các tùy chọn sau:
 
 | Tùy chọn | Bắt buộc | Mô tả |
 |---|---|---|
-| `device` | Có | Loại thiết bị: `fan`, `speaker`, `tv`, `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` |
-| `model` | Với `fan`, `speaker`, `tv` | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
+| `device` | Có | Loại thiết bị, xem hai bảng ở trên |
+| `model` | Với thiết bị hồng ngoại | Mẫu remote hồng ngoại, xem bảng trên. Bỏ trống thì lấy mẫu đầu tiên của loại đó |
 | `blaster` | Với thiết bị hồng ngoại | Tên node ESPHome phát IR, là phần giữa của `esphome.<blaster>_send_nec` |
-| `entity` | Với `appletv`, `climate`, `light`, `cover`, `vacuum`, `camera` | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
+| `entity` | Với thiết bị thông minh | Entity của thiết bị. Với thiết bị hồng ngoại thì tùy chọn: entity cho biết thiết bị đang bật hay tắt, ví dụ `media_player` của TV |
 | `name` | Không | Tên hiển thị, mặc định lấy theo thiết bị |
 | `icon` | Không | Icon hiển thị, mặc định lấy theo thiết bị |
 | `color` | Không | Màu icon. Nhận tên màu của Home Assistant (`teal`, `purple`, `amber`...) hoặc mã CSS (`"#5CC8BE"`). Mặc định mỗi loại một màu: quạt xanh ngọc, loa và robot tím nhạt, TV và camera xanh dương, Apple TV hồng, điều hòa xanh da trời |
-| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Đèn: mức sáng, màu trắng và màu, ví dụ `[b50, warm, red]`. Cửa cuốn: `[open, stop, close]`. Robot hút bụi và camera: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
+| `quick` | Không | Các nút nhanh ở hàng dưới của card, một hoặc nhiều nút. Thiết bị hồng ngoại: danh sách id nút, ví dụ `[power, swing, timer]`. Điều hòa: danh sách chế độ, ví dụ `[cool, dry]`. Đèn: mức sáng, màu trắng và màu, ví dụ `[b50, warm, red]`. Cửa cuốn: `[open, stop, close]`. Thiết bị thông minh khác: danh sách id hành động (xem bảng bên dưới). Robot hút bụi, camera và ổ cắm: danh sách nút theo entity (xem bên dưới). Bỏ trống thì dùng mặc định của loại thiết bị |
 | `hide_quick` | Không | `true` để ẩn hàng nút nhanh. Card khi đó thấp bằng một tile của Home Assistant (56px), xếp cạnh tile đèn và công tắc cho đều. Bấm vào card vẫn mở pop-up đầy đủ |
 | `badge_entity` | Không | Entity hiện ở ô trạng thái góc phải, ví dụ cảm biến nhiệt độ phòng hoặc tiến độ dọn của robot. Mặc định: điều hòa hiện nhiệt độ đang đặt, thiết bị hồng ngoại hiện icon remote |
 | `badge_icon` | Không | Icon đứng trước chữ trong ô trạng thái, ví dụ `mdi:progress-check`. Điều hòa mặc định là `mdi:thermometer` |
@@ -187,6 +226,32 @@ icon: mdi:garage               # tùy chọn; mặc định là hình cửa cu�
 - `controls` thêm các nút của riêng bạn ở phía dưới, ví dụ đèn hoặc khóa của cửa.
 
 Cửa cuốn là lối vào nhà, nên hãy cân nhắc ai mở được dashboard trước khi đặt card này lên đó.
+
+### Khóa cửa, quạt thông minh, loa và các thiết bị thông minh khác
+
+Các loại này chạy theo cùng một cách: card đọc những gì entity hỗ trợ và chỉ hiện những thứ đó. `quick` nhận các id hành động trong bảng.
+
+```yaml
+type: custom:aurora-smart-device-card
+device: lock
+entity: lock.cua_chinh
+```
+
+| `device` | Bấm icon | Góc phải | Hành động (`quick`) | Pop-up có thêm |
+|---|---|---|---|---|
+| `lock` | Đang khóa thì mở khóa, còn lại thì khóa | Trạng thái | `lock`, `unlock`, `open` | |
+| `fan` | Bật / tắt | Tốc độ | `low`, `medium`, `high`, `power`, `oscillate`, `direction` | Thanh tốc độ, các chế độ |
+| `media_player` | Bật / tắt, hoặc phát / dừng nếu thiết bị không có lệnh nguồn | Icon đang phát hay tạm dừng | `previous`, `play_pause`, `next`, `vol_down`, `mute`, `vol_up`, `power` | Nội dung đang phát, thanh âm lượng, nguồn phát và chế độ âm thanh |
+| `water_heater` | Bật / tắt | Nhiệt độ đặt | `power`, `mode:<tên>` | Thanh nhiệt độ, các chế độ |
+| `humidifier` | Bật / tắt | Độ ẩm đặt | `power`, `mode:<tên>` | Thanh độ ẩm, các chế độ |
+| `alarm` | Mở pop-up | Trạng thái | `arm_home`, `arm_away`, `arm_night`, `arm_vacation`, `disarm` | |
+| `valve` | Mở / đóng | Vị trí hoặc trạng thái | `open`, `stop`, `close` | Thanh vị trí |
+| `lawn_mower` | Mở pop-up | Trạng thái | `start`, `pause`, `dock` | |
+
+- **Khóa cửa:** mở khóa và mở cửa đều hỏi lại trước khi làm; đặt `confirm: false` để tắt câu hỏi. Card sáng lên khi cửa đang không khóa.
+- **Mã:** nếu khóa hoặc báo động cần mã, card hỏi mã bằng hộp thoại của trình duyệt mỗi lần. Mã hiện rõ khi gõ và không được lưu lại.
+- **Ổ cắm và công tắc** (`device: switch`): bấm icon để bật tắt. Hiện công suất bằng `badge_entity`, thêm nút bằng `quick` và `controls` giống robot hút bụi.
+- `controls` thêm các nút của riêng bạn ở cuối mọi pop-up.
 
 ### Robot hút bụi và camera
 

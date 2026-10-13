@@ -1,6 +1,11 @@
 /*
  * Aurora Device Control Card - card Lovelace dieu khien thiet bi theo mot kieu thong nhat.
  *
+ * File nay dang ky hai card:
+ *   custom:aurora-ir-remote-card      thiet bi hong ngoai (mot chieu, phat qua bo phat IR)
+ *   custom:aurora-smart-device-card   thiet bi thong minh (hai chieu, dieu khien theo entity)
+ * Card cu custom:aurora-device-control-card nhan ca hai nhom va van chay.
+ *
  * Thiet bi hong ngoai (quat, loa, TV) phat qua bo phat IR chay ESPHome:
  *   type: custom:aurora-device-control-card
  *   device: fan                # loai thiet bi
@@ -17,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "1.8.0";
+const VERSION = "2.0.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -33,6 +38,61 @@ const STRINGS = {
     device_climate: "Air conditioner",
     device_light: "Light",
     device_cover: "Roller door / curtain",
+    device_lock: "Door lock",
+    device_media_player: "Speaker / smart TV",
+    device_water_heater: "Water heater",
+    device_humidifier: "Humidifier / dehumidifier",
+    device_switch: "Socket / switch",
+    device_alarm: "Alarm",
+    device_valve: "Water valve",
+    device_lawn_mower: "Lawn mower",
+    device_projector: "Projector",
+    name_lock: "Door lock",
+    name_fan: "Fan",
+    name_media_player: "Media player",
+    name_water_heater: "Water heater",
+    name_humidifier: "Humidifier",
+    name_switch: "Socket",
+    name_alarm_control_panel: "Alarm",
+    name_valve: "Water valve",
+    name_lawn_mower: "Lawn mower",
+    act_power: "Power",
+    act_lock: "Lock",
+    act_unlock: "Unlock",
+    act_open: "Open",
+    act_stop: "Stop",
+    act_close: "Close",
+    act_low: "Low",
+    act_medium: "Medium",
+    act_high: "High",
+    act_oscillate: "Oscillate",
+    act_direction: "Reverse",
+    act_previous: "Previous",
+    act_play_pause: "Play / pause",
+    act_next: "Next",
+    act_vol_down: "Volume down",
+    act_vol_up: "Volume up",
+    act_mute: "Mute",
+    act_arm_home: "Arm home",
+    act_arm_away: "Arm away",
+    act_arm_night: "Arm night",
+    act_arm_vacation: "Arm vacation",
+    act_disarm: "Disarm",
+    act_start: "Start",
+    act_pause: "Pause",
+    act_dock: "Return to dock",
+    slider_fan_speed: "Speed",
+    slider_volume: "Volume",
+    slider_temperature: "Target temperature",
+    slider_humidity: "Target humidity",
+    slider_position: "Position",
+    chip_preset_mode: "Mode",
+    chip_mode: "Mode",
+    chip_operation_mode: "Mode",
+    chip_source: "Source",
+    chip_sound_mode: "Sound mode",
+    enter_code: "Enter the code",
+    label_confirm: "Ask before unlocking or opening",
     device_vacuum: "Robot vacuum",
     device_camera: "Camera",
     name_climate: "Air conditioner",
@@ -113,6 +173,61 @@ const STRINGS = {
     device_climate: "Điều hòa",
     device_light: "Đèn",
     device_cover: "Cửa cuốn / rèm",
+    device_lock: "Khóa cửa",
+    device_media_player: "Loa / TV thông minh",
+    device_water_heater: "Bình nóng lạnh",
+    device_humidifier: "Máy tạo ẩm / hút ẩm",
+    device_switch: "Ổ cắm / công tắc",
+    device_alarm: "Báo động",
+    device_valve: "Van nước",
+    device_lawn_mower: "Máy cắt cỏ",
+    device_projector: "Máy chiếu",
+    name_lock: "Khóa cửa",
+    name_fan: "Quạt",
+    name_media_player: "Thiết bị phát",
+    name_water_heater: "Bình nóng lạnh",
+    name_humidifier: "Máy tạo ẩm",
+    name_switch: "Ổ cắm",
+    name_alarm_control_panel: "Báo động",
+    name_valve: "Van nước",
+    name_lawn_mower: "Máy cắt cỏ",
+    act_power: "Nguồn",
+    act_lock: "Khóa",
+    act_unlock: "Mở khóa",
+    act_open: "Mở",
+    act_stop: "Dừng",
+    act_close: "Đóng",
+    act_low: "Thấp",
+    act_medium: "Vừa",
+    act_high: "Cao",
+    act_oscillate: "Đảo gió",
+    act_direction: "Đảo chiều",
+    act_previous: "Bài trước",
+    act_play_pause: "Phát / dừng",
+    act_next: "Bài sau",
+    act_vol_down: "Giảm âm",
+    act_vol_up: "Tăng âm",
+    act_mute: "Tắt tiếng",
+    act_arm_home: "Bật ở nhà",
+    act_arm_away: "Bật vắng nhà",
+    act_arm_night: "Bật ban đêm",
+    act_arm_vacation: "Bật đi xa",
+    act_disarm: "Tắt báo động",
+    act_start: "Bắt đầu",
+    act_pause: "Tạm dừng",
+    act_dock: "Về dock",
+    slider_fan_speed: "Tốc độ",
+    slider_volume: "Âm lượng",
+    slider_temperature: "Nhiệt độ đặt",
+    slider_humidity: "Độ ẩm đặt",
+    slider_position: "Vị trí",
+    chip_preset_mode: "Chế độ",
+    chip_mode: "Chế độ",
+    chip_operation_mode: "Chế độ",
+    chip_source: "Nguồn phát",
+    chip_sound_mode: "Chế độ âm thanh",
+    enter_code: "Nhập mã",
+    label_confirm: "Hỏi lại trước khi mở khóa hoặc mở cửa",
     device_vacuum: "Robot hút bụi",
     device_camera: "Camera",
     name_climate: "Điều hòa",
@@ -239,6 +354,36 @@ function fan12(code) {
 function mitsubishiFan(hex) {
   const bits = [...hex].map((digit) => parseInt(digit, 16).toString(2).padStart(4, "0")).join("");
   return pronto(38000, [2840, 1420, ...bitTimings(bits, [355, 1065], [355, 355]), 355, 10000]);
+}
+
+// TV Sharp: khung 15 bit (5 bit dia chi, 8 bit lenh, 2 bit phu "10"), bit thap di truoc.
+// Khung thu hai lap lai dia chi va dao 10 bit con lai de TV doi chieu.
+function sharp(address, command) {
+  const low = (value, count) => [...Array(count)].map((_, i) => (value >> i) & 1).join("");
+  const head = low(address, 5);
+  const tail = `${low(command, 8)}10`;
+  const inverted = [...tail].map((bit) => (bit === "1" ? "0" : "1")).join("");
+  const frame = (bits) => [...bitTimings(bits, [320, 1680], [320, 680]), 320, 44000];
+  return pronto(38000, [...frame(head + tail), ...frame(head + inverted)]);
+}
+
+// Quat KDK: khung 56 bit viet dang hex, bit cao di truoc, remote that phat hai lan.
+function kdkFan(hex) {
+  const bits = [...hex].map((digit) => parseInt(digit, 16).toString(2).padStart(4, "0")).join("");
+  const frame = [3500, 1700, ...bitTimings(bits, [450, 1270], [450, 420]), 450, 74500];
+  return pronto(38000, [...frame, ...frame]);
+}
+
+// Bo cuc cho may chieu: vong dieu huong va phim co ban nhu TV, phan mo rong la cac phim rieng cua may chieu.
+// extras: [id, icon, nhan]
+function projectorLayout(codes, extras) {
+  const base = tvLayout(codes);
+  const buttons = extras.map(([id, icon, label]) => ({ id, icon, label, ...codes[id] }));
+  return {
+    ...base,
+    groups: [...base.groups, { columns: 3, buttons }],
+    pad: { ...base.pad, extra: [{ columns: 3, buttons }] },
+  };
 }
 
 // Bo cuc chung cho remote TV. codes: id nut -> cac truong ma IR ({ command } hoac { data, nbits }).
@@ -687,6 +832,187 @@ const REMOTES = {
     ],
   },
 
+  // TV Sharp Aquos (giao thuc Sharp, dia chi 1 va 17), gui qua send_pronto.
+  // Lay tu Flipper-IRDB (remote LC-RC1-16), CHUA thu tren TV that.
+  sharp_tv: {
+    name: "Sharp TV",
+    icon: "mdi:television",
+    color: "#6AA9F0",
+    button_height: 54,
+    power: "power",
+    quick: ["mute", "vol_down", "vol_up"],
+    ...tvLayout(
+      mapValues(
+        {
+          power: [1, 0x16], source: [1, 0x13], num_1: [1, 0x01], num_2: [1, 0x02], num_3: [1, 0x03],
+          num_4: [1, 0x04], num_5: [1, 0x05], num_6: [1, 0x06], num_7: [1, 0x07], num_8: [1, 0x08],
+          num_9: [1, 0x09], num_0: [1, 0x0a], info: [17, 0x28], vol_up: [1, 0x14], vol_down: [1, 0x15],
+          mute: [1, 0x17], home: [17, 0x27], ch_up: [1, 0x11], ch_down: [1, 0x12], menu: [1, 0x20],
+          exit: [1, 0xf3], up: [1, 0x57], down: [1, 0x58], left: [1, 0xf5], right: [1, 0xf6],
+          ok: [1, 0xf7], rewind: [17, 0xc4], play: [17, 0xc2], pause: [17, 0xcd], stop: [17, 0xc3],
+          fast_forward: [17, 0xc5],
+        },
+        ([address, command]) => ({ pronto: sharp(address, command) })
+      )
+    ),
+  },
+
+  // Quat KDK (K14X5, K14Y5). Lay tu Flipper-IRDB, CHUA thu tren quat that.
+  kdk_fan: {
+    name: "KDK Fan",
+    icon: "mdi:fan",
+    color: "#5CC8BE",
+    button_height: 64,
+    power: "power",
+    quick: ["speed_1", "speed_2", "speed_3"],
+    buttons: [
+      { id: "power", icon: "mdi:power", pronto: kdkFan("40040b210c8caa"), color: "#e53935" },
+      { id: "sleep", icon: "mdi:weather-night", label: "SLEEP", pronto: kdkFan("40040b210c7254") },
+      { id: "off_timer", icon: "mdi:timer-off-outline", label: "OFF TIMER", pronto: kdkFan("40040b210c0224") },
+      { id: "speed_1", icon: "mdi:fan-speed-1", label: "SPEED 1", pronto: kdkFan("40040b210c84a2") },
+      { id: "speed_2", icon: "mdi:fan-speed-2", label: "SPEED 2", pronto: kdkFan("40040b210c4462") },
+      { id: "speed_3", icon: "mdi:fan-speed-3", label: "SPEED 3", pronto: kdkFan("40040b210cc4e2") },
+      { id: "timer_1h", icon: "mdi:timer-outline", label: "1H", pronto: kdkFan("40040b210c82a4") },
+      { id: "timer_3h", icon: "mdi:timer-outline", label: "3H", pronto: kdkFan("40040b210cc2e4") },
+      { id: "timer_6h", icon: "mdi:timer-outline", label: "6H", pronto: kdkFan("40040b210c6244") },
+    ],
+  },
+
+  // May chieu: deu dung NEC mo rong. Lay tu Flipper-IRDB, CHUA thu tren may that.
+  // Epson (dia chi 0x5583): nut nguon bat may; khi tat, may hoi lai va can bam them lan nua.
+  epson_projector: {
+    name: "Epson",
+    icon: "mdi:projector",
+    color: "#6AA9F0",
+    protocol: "nec",
+    address: 0x5583,
+    repeats: 1,
+    button_height: 54,
+    power: "power",
+    quick: ["source", "vol_down", "vol_up"],
+    ...projectorLayout(
+      mapValues(
+        {
+          power: 0x90, source: 0x8c, home: 0x95, menu: 0x9a,
+          up: 0xb0, down: 0xb2, left: 0xb3, right: 0xb1, ok: 0x85,
+          vol_up: 0x98, vol_down: 0x99, play: 0x5e, pause: 0x5b, stop: 0x59,
+          freeze: 0x92, hdmi_1: 0x73, hdmi_2: 0x77, lan: 0x74, zoom_in: 0x88, zoom_out: 0x89,
+        },
+        (code) => ({ command: nec(code) })
+      ),
+      [
+        ["hdmi_1", "mdi:video-input-hdmi", "HDMI 1"],
+        ["hdmi_2", "mdi:video-input-hdmi", "HDMI 2"],
+        ["lan", "mdi:lan", "LAN"],
+        ["freeze", "mdi:snowflake", "FREEZE"],
+        ["zoom_out", "mdi:magnify-minus-outline", "ZOOM −"],
+        ["zoom_in", "mdi:magnify-plus-outline", "ZOOM +"],
+        ["play", "mdi:play", "PLAY"],
+        ["pause", "mdi:pause", "PAUSE"],
+        ["stop", "mdi:stop", "STOP"],
+      ]
+    ),
+  },
+
+  // BenQ (W1070 va cac may cung remote, dia chi 0x3000): nut nguon chi bat, tat bang nut OFF rieng.
+  benq_projector: {
+    name: "BenQ",
+    icon: "mdi:projector",
+    color: "#6AA9F0",
+    protocol: "nec",
+    address: 0x3000,
+    repeats: 1,
+    button_height: 54,
+    power: "power",
+    quick: ["power_off", "source", "mute"],
+    ...projectorLayout(
+      mapValues(
+        {
+          power: 0x4f, power_off: 0x4e, source: 0x04, menu: 0x0f, mute: 0x14,
+          up: 0x0b, down: 0x0c, left: 0x0d, right: 0x0e, ok: 0x10,
+          vol_down: 0x0d, vol_up: 0x0e,
+          hdmi_1: 0x58, hdmi_2: 0x59, blank: 0x07, auto: 0x08, aspect: 0x13, freeze: 0x03,
+        },
+        (code) => ({ command: nec(code) })
+      ),
+      [
+        ["power_off", "mdi:power-off", "OFF"],
+        ["hdmi_1", "mdi:video-input-hdmi", "HDMI 1"],
+        ["hdmi_2", "mdi:video-input-hdmi", "HDMI 2"],
+        ["blank", "mdi:projector-off", "BLANK"],
+        ["freeze", "mdi:snowflake", "FREEZE"],
+        ["aspect", "mdi:aspect-ratio", "ASPECT"],
+        ["auto", "mdi:auto-fix", "AUTO"],
+      ]
+    ),
+  },
+
+  // ViewSonic (PA503W va cac may cung remote, dia chi 0xF483): nut nguon chi bat, tat bang nut OFF rieng.
+  viewsonic_projector: {
+    name: "ViewSonic",
+    icon: "mdi:projector",
+    color: "#6AA9F0",
+    protocol: "nec",
+    address: 0xf483,
+    repeats: 1,
+    button_height: 54,
+    power: "power",
+    quick: ["power_off", "source", "mute"],
+    ...projectorLayout(
+      mapValues(
+        {
+          power: 0x4f, power_off: 0x4e, source: 0x40, menu: 0x30, info: 0x97, exit: 0x28, mute: 0x14,
+          up: 0x0b, down: 0x0c, left: 0x0e, right: 0x0f, ok: 0x15,
+          vol_up: 0x82, vol_down: 0x83,
+          hdmi_1: 0x58, blank: 0x07, auto: 0x08, aspect: 0x13, freeze: 0x03, eco: 0x2b,
+        },
+        (code) => ({ command: nec(code) })
+      ),
+      [
+        ["power_off", "mdi:power-off", "OFF"],
+        ["hdmi_1", "mdi:video-input-hdmi", "HDMI"],
+        ["exit", "mdi:exit-to-app", "EXIT"],
+        ["blank", "mdi:projector-off", "BLANK"],
+        ["freeze", "mdi:snowflake", "FREEZE"],
+        ["aspect", "mdi:aspect-ratio", "ASPECT"],
+        ["auto", "mdi:auto-fix", "AUTO"],
+        ["eco", "mdi:leaf", "ECO"],
+        ["info", "mdi:information-outline", "INFO"],
+      ]
+    ),
+  },
+
+  // Optoma doi cu (dia chi 0x504F). May Optoma doi moi dung bo ma khac.
+  optoma_projector: {
+    name: "Optoma",
+    icon: "mdi:projector",
+    color: "#6AA9F0",
+    protocol: "nec",
+    address: 0x504f,
+    repeats: 1,
+    button_height: 54,
+    power: "power",
+    quick: ["blank", "vol_down", "vol_up"],
+    ...projectorLayout(
+      mapValues(
+        {
+          power: 0x02, menu: 0x11,
+          up: 0x13, down: 0x14, left: 0x16, right: 0x15, ok: 0x17,
+          vol_up: 0x07, vol_down: 0x0a,
+          blank: 0x03, auto: 0x04, freeze: 0x0c, keystone_up: 0x08, keystone_down: 0x0b,
+        },
+        (code) => ({ command: nec(code) })
+      ),
+      [
+        ["blank", "mdi:projector-off", "HIDE"],
+        ["freeze", "mdi:snowflake", "FREEZE"],
+        ["auto", "mdi:auto-fix", "RESYNC"],
+        ["keystone_down", "mdi:perspective-less", "KEYSTONE −"],
+        ["keystone_up", "mdi:perspective-more", "KEYSTONE +"],
+      ]
+    ),
+  },
+
   // Apple TV: lenh di qua mang bang remote.send_command (khong dung IR), trang thai lay tu media_player.
   // Pop-up co them o go chu (apple_tv.set_keyboard_text) va cac ung dung chon trong "apps".
   appletv: {
@@ -758,6 +1084,286 @@ const REMOTES = {
     on_states: ["open", "opening", "closing"],
   },
 
+  // ----- Thiet bi thong minh khai bao bang bang (kind "smart") -----
+  //   tap(state): id hanh dong khi bam icon ("toggle" = bat / tat), bo trong thi mo pop-up
+  //   toggle: cap action [bat, tat] neu khong phai turn_on / turn_off
+  //   actions(state, on): cac nut; "feature" da loc san bang has(); row: hang trong pop-up
+  //     confirm: hoi lai truoc khi lam; code: can ma neu entity co code_format
+  //   sliders / chips: thanh truot va hang lua chon trong pop-up; quick_chips: nhom lua chon dau tien
+  //     cung dung lam nut nhanh (id "mode:<gia tri>")
+  //   badge(state): chu o goc phai; badge_state: khong co thi hien trang thai
+  lock: {
+    kind: "smart",
+    domain: "lock",
+    name: "Door lock",
+    icon: "mdi:lock",
+    color: "#F2A65A",
+    on_states: ["unlocked", "unlocking", "open", "opening", "jammed"],
+    badge_state: true,
+    default_quick: ["lock", "unlock"],
+    tap: (s) => (s.state === "locked" ? "unlock" : "lock"),
+    actions: (s) => [
+      { id: "lock", icon: "mdi:lock", service: "lock", active: s.state === "locked", code: true },
+      { id: "unlock", icon: "mdi:lock-open-variant", service: "unlock", active: s.state === "unlocked", confirm: true, code: true },
+      has(s, 1) && { id: "open", icon: "mdi:door-open", service: "open", active: s.state === "open", confirm: true, code: true },
+    ],
+  },
+
+  smart_fan: {
+    kind: "smart",
+    domain: "fan",
+    name: "Fan",
+    icon: "mdi:fan",
+    color: "#5CC8BE",
+    default_quick: ["low", "medium", "high"],
+    tap: () => "toggle",
+    badge: (s) => (s.state === "on" && s.attributes.percentage != null ? `${s.attributes.percentage}%` : ""),
+    actions: (s, on) => {
+      const pct = on ? s.attributes.percentage : null;
+      const speed = (id, icon, value, above) =>
+        has(s, 1) && {
+          id,
+          icon,
+          service: "set_percentage",
+          data: { percentage: value },
+          active: pct != null && pct > above && pct <= value,
+        };
+      return [
+        speed("low", "mdi:fan-speed-1", 33, 0),
+        speed("medium", "mdi:fan-speed-2", 66, 33),
+        speed("high", "mdi:fan-speed-3", 100, 66),
+        { id: "power", icon: "mdi:power", service: "toggle", active: on, row: 1 },
+        has(s, 2) && {
+          id: "oscillate",
+          icon: "mdi:arrow-oscillating",
+          service: "oscillate",
+          data: { oscillating: !s.attributes.oscillating },
+          active: !!s.attributes.oscillating,
+          row: 1,
+        },
+        has(s, 4) && {
+          id: "direction",
+          icon: "mdi:swap-horizontal",
+          service: "set_direction",
+          data: { direction: s.attributes.direction === "reverse" ? "forward" : "reverse" },
+          active: s.attributes.direction === "reverse",
+          row: 1,
+        },
+      ];
+    },
+    sliders: [
+      {
+        key: "percentage",
+        label: "slider_fan_speed",
+        feature: 1,
+        min: 0,
+        max: 100,
+        unit: "%",
+        value: (a, s) => (s.state === "on" ? a.percentage : 0),
+        service: "set_percentage",
+        data: (value) => ({ percentage: value }),
+      },
+    ],
+    chips: [{ attribute: "preset_mode", list: "preset_modes", service: "set_preset_mode", feature: 8 }],
+  },
+
+  media_player: {
+    kind: "smart",
+    media: true,
+    domain: "media_player",
+    name: "Media player",
+    icon: "mdi:speaker",
+    color: "#B394E8",
+    off_states: ["off", "standby", "unavailable", "unknown"],
+    now_playing: true,
+    default_quick: ["play_pause", "vol_down", "vol_up"],
+    tap: (s) => (has(s, 128) || has(s, 256) ? "toggle" : "play_pause"),
+    actions: (s, on) => {
+      const playing = s.state === "playing";
+      const muted = !!s.attributes.is_volume_muted;
+      const volume = has(s, 1024) || has(s, 4);
+      return [
+        has(s, 16) && { id: "previous", icon: "mdi:skip-previous", service: "media_previous_track" },
+        (has(s, 16384) || has(s, 1)) && {
+          id: "play_pause",
+          icon: playing ? "mdi:pause" : "mdi:play",
+          service: "media_play_pause",
+          active: playing,
+        },
+        has(s, 32) && { id: "next", icon: "mdi:skip-next", service: "media_next_track" },
+        volume && { id: "vol_down", icon: "mdi:volume-minus", service: "volume_down", row: 1 },
+        has(s, 8) && {
+          id: "mute",
+          icon: muted ? "mdi:volume-off" : "mdi:volume-high",
+          service: "volume_mute",
+          data: { is_volume_muted: !muted },
+          active: muted,
+          row: 1,
+        },
+        volume && { id: "vol_up", icon: "mdi:volume-plus", service: "volume_up", row: 1 },
+        (has(s, 128) || has(s, 256)) && { id: "power", icon: "mdi:power", service: "toggle", active: on, row: 1 },
+      ];
+    },
+    sliders: [
+      {
+        key: "volume",
+        label: "slider_volume",
+        feature: 4,
+        min: 0,
+        max: 100,
+        unit: "%",
+        value: (a) => (a.volume_level != null ? Math.round(a.volume_level * 100) : null),
+        service: "volume_set",
+        data: (value) => ({ volume_level: value / 100 }),
+      },
+    ],
+    chips: [
+      { attribute: "source", list: "source_list", service: "select_source", feature: 2048 },
+      { attribute: "sound_mode", list: "sound_mode_list", service: "select_sound_mode", feature: 65536 },
+    ],
+  },
+
+  water_heater: {
+    kind: "smart",
+    domain: "water_heater",
+    name: "Water heater",
+    icon: "mdi:water-boiler",
+    color: "#EF8A80",
+    off_states: ["off", "unavailable", "unknown"],
+    quick_chips: true,
+    tap: (s) => (has(s, 8) ? "toggle" : null),
+    badge: (s) => (s.attributes.temperature != null ? `${s.attributes.temperature} °C` : ""),
+    badge_state: true,
+    actions: (s, on) => [has(s, 8) && { id: "power", icon: "mdi:power", service: "toggle", active: on }],
+    sliders: [
+      {
+        key: "temperature",
+        label: "slider_temperature",
+        feature: 1,
+        min: (a) => a.min_temp ?? 30,
+        max: (a) => a.max_temp ?? 75,
+        step: (a) => a.target_temp_step || 1,
+        unit: " °C",
+        value: (a) => a.temperature,
+        service: "set_temperature",
+        data: (value) => ({ temperature: value }),
+      },
+    ],
+    chips: [{ attribute: "operation_mode", list: "operation_list", service: "set_operation_mode", feature: 2 }],
+  },
+
+  humidifier: {
+    kind: "smart",
+    domain: "humidifier",
+    name: "Humidifier",
+    icon: "mdi:air-humidifier",
+    color: "#64B5F6",
+    quick_chips: true,
+    tap: () => "toggle",
+    badge: (s) => (s.state === "on" && s.attributes.humidity != null ? `${s.attributes.humidity}%` : ""),
+    actions: (s, on) => [{ id: "power", icon: "mdi:power", service: "toggle", active: on }],
+    sliders: [
+      {
+        key: "humidity",
+        label: "slider_humidity",
+        min: (a) => a.min_humidity ?? 0,
+        max: (a) => a.max_humidity ?? 100,
+        unit: "%",
+        value: (a) => a.humidity,
+        service: "set_humidity",
+        data: (value) => ({ humidity: value }),
+      },
+    ],
+    chips: [{ attribute: "mode", list: "available_modes", service: "set_mode", feature: 1 }],
+  },
+
+  alarm: {
+    kind: "smart",
+    domain: "alarm_control_panel",
+    name: "Alarm",
+    icon: "mdi:shield-home",
+    color: "#EF8A80",
+    on_states: ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_custom_bypass", "arming", "pending", "triggered"],
+    badge_state: true,
+    default_quick: ["arm_home", "arm_away", "disarm"],
+    actions: (s) => {
+      const arm = (id, icon, feature) =>
+        has(s, feature) && {
+          id: `arm_${id}`,
+          icon,
+          service: `alarm_arm_${id}`,
+          active: s.state === `armed_${id}`,
+          code: s.attributes.code_arm_required !== false,
+        };
+      return [
+        arm("home", "mdi:shield-home", 1),
+        arm("away", "mdi:shield-lock", 2),
+        arm("night", "mdi:shield-moon", 4),
+        arm("vacation", "mdi:shield-airplane", 32),
+        { id: "disarm", icon: "mdi:shield-off", service: "alarm_disarm", active: s.state === "disarmed", code: true, row: 1 },
+      ];
+    },
+  },
+
+  valve: {
+    kind: "smart",
+    domain: "valve",
+    name: "Water valve",
+    icon: "mdi:pipe-valve",
+    color: "#64B5F6",
+    on_states: ["open", "opening", "closing"],
+    badge: (s) => (s.attributes.current_position != null ? `${s.attributes.current_position}%` : ""),
+    badge_state: true,
+    toggle: ["open_valve", "close_valve"],
+    tap: () => "toggle",
+    actions: (s) => [
+      has(s, 1) && { id: "open", icon: "mdi:valve-open", service: "open_valve", active: s.state === "opening" },
+      has(s, 8) && { id: "stop", icon: "mdi:stop", service: "stop_valve" },
+      has(s, 2) && { id: "close", icon: "mdi:valve-closed", service: "close_valve", active: s.state === "closing" },
+    ],
+    sliders: [
+      {
+        key: "position",
+        label: "slider_position",
+        feature: 4,
+        min: 0,
+        max: 100,
+        unit: "%",
+        value: (a) => a.current_position,
+        service: "set_valve_position",
+        data: (value) => ({ position: value }),
+      },
+    ],
+  },
+
+  lawn_mower: {
+    kind: "smart",
+    domain: "lawn_mower",
+    name: "Lawn mower",
+    icon: "mdi:robot-mower",
+    color: "#81C995",
+    on_states: ["mowing", "returning", "paused"],
+    badge_state: true,
+    actions: (s) => [
+      has(s, 1) && { id: "start", icon: "mdi:play", service: "start_mowing", active: s.state === "mowing" },
+      has(s, 2) && { id: "pause", icon: "mdi:pause", service: "pause", active: s.state === "paused" },
+      has(s, 4) && { id: "dock", icon: "mdi:home-import-outline", service: "dock", active: s.state === "returning" },
+    ],
+  },
+
+  // O cam / cong tac: bam icon la bat tat; cong suat hien bang "badge_entity", nut them bang "quick" / "controls"
+  switch: {
+    kind: "entity",
+    toggle: true,
+    domain: "switch",
+    domains: ["switch", "input_boolean"],
+    name: "Socket",
+    icon: "mdi:power-socket",
+    color: "#81C995",
+    button_height: 54,
+    on_states: ["on"],
+  },
+
   // Robot hut bui: card theo entity vacuum, nut nhanh va nut pop-up khai bao bang "quick" / "controls"
   vacuum: {
     kind: "entity",
@@ -786,8 +1392,8 @@ const REMOTES = {
 
 // Loai thiet bi -> mau co san. Form chon theo 2 buoc: loai thiet bi, roi mau remote hong ngoai.
 // "models" tro toi cac bo ma trong REMOTES; "remote" la loai chi co mot kieu, dieu khien theo entity.
-const DEVICES = {
-  fan: { name: "Fan", models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan" } },
+const IR_DEVICES = {
+  fan: { name: "Fan", models: { hsv: "hsv_fan", toshiba: "toshiba_fan", senko: "senko_fan", mitsubishi: "mitsubishi_fan", kdk: "kdk_fan" } },
   speaker: { name: "Speaker", models: { lg: "lg_soundbar" } },
   tv: { name: "TV", models: {
       samsung: "samsung_tv",
@@ -797,27 +1403,51 @@ const DEVICES = {
       panasonic: "panasonic_tv",
       toshiba: "toshiba_tv",
       hisense: "hisense_tv",
+      sharp: "sharp_tv",
     }, },
-  appletv: { name: "Apple TV", remote: "appletv" },
+  projector: { name: "Projector", models: {
+      epson: "epson_projector",
+      benq: "benq_projector",
+      viewsonic: "viewsonic_projector",
+      optoma: "optoma_projector",
+    }, },
+};
+
+// Thiet bi thong minh: dieu khien theo entity, card biet trang thai that
+const SMART_DEVICES = {
   climate: { name: "Air conditioner", remote: "climate" },
   light: { name: "Light", remote: "light" },
   cover: { name: "Roller door / curtain", remote: "cover" },
+  lock: { name: "Door lock", remote: "lock" },
+  fan: { name: "Fan", remote: "smart_fan" },
+  switch: { name: "Socket / switch", remote: "switch" },
+  media_player: { name: "Speaker / smart TV", remote: "media_player" },
+  appletv: { name: "Apple TV", remote: "appletv" },
+  water_heater: { name: "Water heater", remote: "water_heater" },
+  humidifier: { name: "Humidifier / dehumidifier", remote: "humidifier" },
   vacuum: { name: "Robot vacuum", remote: "vacuum" },
   camera: { name: "Camera", remote: "camera" },
+  alarm: { name: "Alarm", remote: "alarm" },
+  valve: { name: "Water valve", remote: "valve" },
+  lawn_mower: { name: "Lawn mower", remote: "lawn_mower" },
 };
 
+// Card cu nhan ca hai nhom; ten trung nhau ("fan") thi la thiet bi hong ngoai nhu truoc nay
+const ALL_DEVICES = { ...SMART_DEVICES, ...IR_DEVICES };
+const devicesFor = (flavour) => (flavour === "ir" ? IR_DEVICES : flavour === "smart" ? SMART_DEVICES : ALL_DEVICES);
+
 // Khoa trong REMOTES ung voi cau hinh: kieu moi (device + model) hoac kieu cu (remote)
-function remoteKey(config) {
+function remoteKey(config, flavour) {
   if (!config.device) return config.remote;
-  const device = DEVICES[config.device];
+  const device = devicesFor(flavour)[config.device];
   if (!device) return undefined;
   return device.remote || device.models[config.model] || Object.values(device.models)[0];
 }
 
 // Suy ra { device, model } tu cau hinh, ke ca cau hinh cu chi co "remote"
-function deviceOf(config) {
+function deviceOf(config, flavour) {
   if (config.device) return { device: config.device, model: config.model };
-  for (const [device, item] of Object.entries(DEVICES)) {
+  for (const [device, item] of Object.entries(devicesFor(flavour))) {
     if (item.remote === config.remote) return { device };
     for (const [model, key] of Object.entries(item.models || {})) {
       if (key === config.remote) return { device, model };
@@ -1468,6 +2098,12 @@ const POPUP_CSS = `
     transition: transform 0.1s, filter 0.1s;
     -webkit-tap-highlight-color: transparent;
   }
+  /* Hanh dong dang co tac dung (dang khoa, dang phat, dang bat bao dong...) */
+  .grid button.on {
+    border-color: color-mix(in srgb, var(--ir-accent) 70%, transparent);
+    background: color-mix(in srgb, var(--ir-accent) 24%, transparent);
+  }
+  .grid button.on ha-icon { color: var(--ir-accent); opacity: 1; }
   .grid button.highlight {
     background: rgba(170, 170, 185, 0.36);
     border-color: rgba(255, 255, 255, 0.4);
@@ -1510,8 +2146,8 @@ function findBlasters(hass) {
   return [...names].sort();
 }
 
-function resolveRemote(config) {
-  return config.custom || REMOTES[remoteKey(config)];
+function resolveRemote(config, flavour) {
+  return config.custom || REMOTES[remoteKey(config, flavour)];
 }
 
 // Moi nut co ma IR cua mot remote, theo thu tu trong pop-up
@@ -1531,6 +2167,73 @@ function buttonTitle(btn) {
 function climateModes(stateObj) {
   const supported = (stateObj && stateObj.attributes.hvac_modes) || ["cool", "dry", "fan_only"];
   return Object.keys(HVAC_ICONS).filter((mode) => supported.includes(mode));
+}
+
+// ----- Thiet bi thong minh khai bao bang bang -----
+const has = (stateObj, bit) => ((stateObj.attributes.supported_features || 0) & bit) !== 0;
+const isOnState = (def, stateObj) =>
+  def.on_states ? def.on_states.includes(stateObj.state) : !(def.off_states || OFF_STATES).includes(stateObj.state);
+
+// Ten hien thi cua mot gia tri thuoc tinh (che do, nguon phat...) theo ngon ngu cua Home Assistant
+function fmtAttr(hass, stateObj, attribute, value) {
+  if (hass && hass.formatEntityAttributeValue) {
+    try {
+      return hass.formatEntityAttributeValue(stateObj, attribute, value) || String(value);
+    } catch (err) {
+      // ban HA cu khong nhan tham so thu ba
+    }
+  }
+  return String(value);
+}
+
+// Cac nhom lua chon (che do, nguon phat) ma entity dang co
+function smartChips(def, stateObj) {
+  return (def.chips || [])
+    .filter((group) => !group.feature || has(stateObj, group.feature))
+    .map((group) => ({
+      ...group,
+      options: stateObj.attributes[group.list] || [],
+      current: stateObj.attributes[group.attribute],
+    }))
+    .filter((group) => group.options.length);
+}
+
+function smartSliders(def, stateObj) {
+  const attrs = stateObj.attributes;
+  const resolve = (value) => (typeof value === "function" ? value(attrs, stateObj) : value);
+  return (def.sliders || [])
+    .filter((slider) => !slider.feature || has(stateObj, slider.feature))
+    .map((slider) => ({
+      ...slider,
+      min: resolve(slider.min),
+      max: resolve(slider.max),
+      step: resolve(slider.step) || 1,
+      value: slider.value(attrs, stateObj),
+    }))
+    .filter((slider) => slider.max > slider.min);
+}
+
+// Moi hanh dong entity dang ho tro, kem chu hien thi
+function smartActions(def, stateObj, hass) {
+  if (!stateObj) return [];
+  const on = isOnState(def, stateObj);
+  const actions = (def.actions ? def.actions(stateObj, on) : [])
+    .filter(Boolean)
+    .map((action) => ({ label: tr(`act_${action.id}`), ...action }));
+  const group = def.quick_chips && smartChips(def, stateObj)[0];
+  if (group) {
+    for (const value of group.options) {
+      actions.push({
+        id: `mode:${value}`,
+        label: fmtAttr(hass, stateObj, group.attribute, value),
+        quick_only: true,
+        service: group.service,
+        data: { [group.attribute]: value },
+        active: on && group.current === value,
+      });
+    }
+  }
+  return actions;
 }
 
 // ----- Den va cua cuon -----
@@ -1597,6 +2300,10 @@ function defaultQuick(def, stateObj) {
   if (def.kind === "climate") return climateModes(stateObj).slice(0, 3);
   if (def.kind === "light") return quickChoices(def, stateObj).filter((id) => ["b25", "b50", "b100"].includes(id));
   if (def.kind === "cover") return quickChoices(def, stateObj);
+  if (def.kind === "smart") {
+    const ids = smartActions(def, stateObj).map((action) => action.id);
+    return def.default_quick ? def.default_quick.filter((id) => ids.includes(id)) : ids.slice(0, 3);
+  }
   if (def.kind) return def.default_quick || [];
   return def.quick || [];
 }
@@ -1619,21 +2326,30 @@ class IrRemoteCard extends HTMLElement {
     };
   }
 
+  // "ir", "smart", hoac khong co (card cu, nhan ca hai nhom); lop con dat trong define()
+  static get flavour() {
+    return undefined;
+  }
+
   static getStubConfig(hass) {
+    if (this.flavour === "smart") {
+      const entity = Object.keys((hass && hass.states) || {}).find((id) => id.startsWith("light."));
+      return entity ? { device: "light", entity } : { device: "light" };
+    }
     return { device: "fan", model: "hsv", blaster: findBlasters(hass)[0] || "ten_node_esphome" };
   }
 
   static getConfigElement() {
-    return document.createElement("aurora-device-control-card-editor");
+    return document.createElement(EDITOR_TAGS[this.flavour] || "aurora-device-control-card-editor");
   }
 
   setConfig(config) {
-    const def = resolveRemote(config);
+    const def = resolveRemote(config, this.constructor.flavour);
     if (!def) {
       throw new Error(
         `aurora-device-control-card: khong co thiet bi '${config.device || config.remote}'` +
           (config.model ? ` mau '${config.model}'` : "") +
-          `. Loai co san: ${Object.keys(DEVICES).join(", ")}`
+          `. Loai co san: ${Object.keys(devicesFor(this.constructor.flavour)).join(", ")}`
       );
     }
     // Thieu entity / bo phat thi khong nem loi: nguoi dung dang chon do trong form,
@@ -1686,7 +2402,11 @@ class IrRemoteCard extends HTMLElement {
 
   // Loai bam icon la bat / tat (hoac mo / dong) chinh entity cua card
   get _isToggleKind() {
-    return ["climate", "light", "cover"].includes(this._def.kind);
+    return ["climate", "light", "cover"].includes(this._def.kind) || (this._def.kind === "entity" && this._def.toggle === true);
+  }
+
+  get _isSmart() {
+    return this._def.kind === "smart";
   }
 
   // Loai theo entity voi nut tu khai bao (vacuum, camera)
@@ -1724,7 +2444,12 @@ class IrRemoteCard extends HTMLElement {
     iconButton.addEventListener("click", (ev) => {
       ev.stopPropagation();
       if (this._isToggleKind) this._callEntity("toggle");
-      else if (this._def.transport === "remote") this._togglePower();
+      else if (this._isSmart) {
+        const stateObj = this._stateObj;
+        const tap = stateObj && this._def.tap ? this._def.tap(stateObj) : null;
+        if (tap) this._pressSmart(tap);
+        else this._openMain();
+      } else if (this._def.transport === "remote") this._togglePower();
       else if (this._isEntityKind) this._openMain();
       else this._send(this._byId[this._def.power]);
     });
@@ -1775,6 +2500,21 @@ class IrRemoteCard extends HTMLElement {
       }));
     }
     if (this._def.kind === "light") return this._lightQuick(chosen, stateObj);
+    if (this._isSmart) {
+      const actions = smartActions(this._def, stateObj, this._hass);
+      return chosen
+        .map((id) => actions.find((action) => action.id === id))
+        .filter(Boolean)
+        .map((action) => ({
+          id: action.id,
+          icon: action.icon,
+          label: action.label,
+          show_label: !!action.quick_only,
+          text_only: !!action.quick_only,
+          active: !!action.active,
+          smart: action.id,
+        }));
+    }
     if (this._def.kind === "cover") {
       const allowed = quickChoices(this._def, stateObj);
       return chosen
@@ -1846,7 +2586,7 @@ class IrRemoteCard extends HTMLElement {
 
   _renderQuick() {
     const buttons = this._quickButtons();
-    const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}`).join(",");
+    const key = buttons.map((b) => `${b.id}:${b.active ? 1 : 0}:${b.label || ""}:${b.smart ? b.icon : ""}`).join(",");
     if (key === this._quickKey) return;
     this._quickKey = key;
     const anyLabel = buttons.some((b) => b.show_label && b.label);
@@ -1954,10 +2694,15 @@ class IrRemoteCard extends HTMLElement {
       const position = stateObj.attributes.current_position;
       if (position != null) text = `${position}%`;
       else text = this._hass.formatEntityState ? this._hass.formatEntityState(stateObj) : stateObj.state;
+    } else if (this._isSmart && stateObj) {
+      text = (this._def.badge && this._def.badge(stateObj)) || "";
+      if (!text && this._def.badge_state) {
+        text = this._hass.formatEntityState ? this._hass.formatEntityState(stateObj) : stateObj.state;
+      }
     }
     // Thiet bi phat nhac / phim: chi hien mot icon cho biet dang phat hay tam dung (ten noi dung qua dai)
     let stateIcon = "";
-    if (!text && this._def.kind === "media" && on && stateObj) {
+    if (!text && (this._def.kind === "media" || this._def.media) && on && stateObj) {
       stateIcon = { playing: "mdi:play", buffering: "mdi:play", paused: "mdi:pause" }[stateObj.state] || "";
     }
     const badgeIcon =
@@ -2268,9 +3013,32 @@ class IrRemoteCard extends HTMLElement {
   _press(btn) {
     if (!btn) return;
     if (btn.power) this._togglePower();
+    else if (btn.smart) this._pressSmart(btn.smart);
     else if (btn.control) this._pressControl(btn.control);
     else if (btn.service) this._callEntity(btn.service[0], btn.service[1]);
     else this._send(btn);
+  }
+
+  // Lam mot hanh dong cua thiet bi thong minh: hoi lai va hoi ma neu hanh dong do can
+  _pressSmart(id) {
+    const stateObj = this._stateObj;
+    if (!stateObj || this._missing) return;
+    const def = this._def;
+    const action = id === "toggle" ? { service: "toggle" } : smartActions(def, stateObj, this._hass).find((a) => a.id === id);
+    if (!action) return;
+    if (action.service === "toggle") {
+      const [turnOn, turnOff] = def.toggle || ["turn_on", "turn_off"];
+      this._callEntity(isOnState(def, stateObj) ? turnOff : turnOn);
+      return;
+    }
+    if (action.confirm && this._config.confirm !== false && !window.confirm(`${action.label}: ${this._name}?`)) return;
+    const data = { ...(action.data || {}) };
+    if (action.code && stateObj.attributes.code_format) {
+      const code = window.prompt(tr("enter_code"));
+      if (code == null) return;
+      data.code = code;
+    }
+    this._callEntity(action.service, data);
   }
 
   // ----- Nut gan voi entity -----
@@ -2537,11 +3305,78 @@ class IrRemoteCard extends HTMLElement {
       this._setSlider("brightness", on ? brightnessPct(attrs) : 1);
       this._setSlider("temp", attrs.color_temp_kelvin);
       this._setSlider("hue", attrs.hs_color ? Math.round(attrs.hs_color[0]) : null);
-    } else {
+    } else if (this._def.kind === "cover") {
       this._stateNodes.forEach(([id, node]) => node.classList.toggle("on", stateObj.state === COVER_ACTIONS[id].state));
       this._setSlider("position", attrs.current_position);
       this._setSlider("tilt", attrs.current_tilt_position);
+    } else if (this._isSmart) {
+      const actions = smartActions(this._def, stateObj, this._hass);
+      this._stateNodes.forEach(([id, node, iconNode]) => {
+        const action = actions.find((a) => a.id === id);
+        node.classList.toggle("on", !!(action && action.active));
+        if (action) iconNode.setAttribute("icon", action.icon);
+      });
+      for (const slider of smartSliders(this._def, stateObj)) this._setSlider(slider.key, slider.value);
+      this._chipNodes.forEach(([attribute, value, node]) => node.classList.toggle("active", attrs[attribute] === value));
     }
+  }
+
+  // Noi dung pop-up cua thiet bi thong minh: cac nut hanh dong theo hang, thanh truot, roi cac nhom lua chon
+  _buildSmartBody() {
+    const stateObj = this._stateObj;
+    const def = this._def;
+    this._sliders = {};
+    this._stateNodes = [];
+    this._chipNodes = [];
+    const body = [];
+    if (def.now_playing) body.push(this._buildNowPlaying());
+    if (!stateObj) return body;
+
+    const rows = [];
+    for (const action of smartActions(def, stateObj, this._hass)) {
+      if (action.quick_only) continue;
+      const row = action.row || 0;
+      (rows[row] = rows[row] || []).push(action);
+    }
+    for (const actions of rows.filter(Boolean)) {
+      const grid = el("div", { class: "grid" });
+      grid.style.gridTemplateColumns = `repeat(${actions.length}, 1fr)`;
+      for (const action of actions) {
+        const iconNode = icon(action.icon);
+        iconNode.style.setProperty("--mdc-icon-size", "26px");
+        const node = el("button", { title: action.label }, [iconNode, el("span", { class: "label", text: action.label })]);
+        node.style.height = "64px";
+        node.addEventListener("click", () => this._pressSmart(action.id));
+        this._stateNodes.push([action.id, node, iconNode]);
+        grid.appendChild(node);
+      }
+      body.push(grid);
+    }
+    for (const slider of smartSliders(def, stateObj)) {
+      body.push(
+        this._buildSlider({
+          key: slider.key,
+          label: tr(slider.label),
+          min: slider.min,
+          max: slider.max,
+          step: slider.step,
+          unit: slider.unit,
+          send: (value) => this._callEntity(slider.service, slider.data(value)),
+        })
+      );
+    }
+    for (const group of smartChips(def, stateObj)) {
+      const chips = el("div", { class: "apps" });
+      for (const value of group.options) {
+        const node = el("button", { text: fmtAttr(this._hass, stateObj, group.attribute, value) });
+        node.addEventListener("click", () => this._callEntity(group.service, { [group.attribute]: value }));
+        this._chipNodes.push([group.attribute, value, node]);
+        chips.appendChild(node);
+      }
+      body.push(el("div", { class: "slider-head" }, [el("span", { text: tr(`chip_${group.attribute}`) })]), chips);
+    }
+    if (this._controls.length) body.push(this._buildControlsGrid());
+    return body;
   }
 
   // Luoi nut tu khai bao bang "controls"
@@ -2742,7 +3577,9 @@ class IrRemoteCard extends HTMLElement {
         ? this._buildLightBody()
         : this._def.kind === "cover"
           ? this._buildCoverBody()
-          : this._isEntityKind
+          : this._isSmart
+            ? this._buildSmartBody()
+            : this._isEntityKind
         ? this._buildEntityBody()
         : this._def.layout === "pad"
           ? this._buildPadBody()
@@ -2860,6 +3697,7 @@ class IrRemoteCard extends HTMLElement {
     this._controlNodes = [];
     this._sliders = null;
     this._stateNodes = [];
+    this._chipNodes = [];
     this._keyboard = null;
     this._nowPlaying = null;
     this._childDialog = false;
@@ -2871,6 +3709,8 @@ class IrRemoteCard extends HTMLElement {
     setTimeout(() => host.remove(), 300);
   }
 }
+
+const EDITOR_TAGS = { ir: "aurora-ir-remote-card-editor", smart: "aurora-smart-device-card-editor" };
 
 // Form cau hinh trong trinh sua card cua dashboard. Bo ma "custom" van sua bang YAML.
 // Cac truong cua mot nut gan voi entity, dung cho form cua vacuum / camera.
@@ -2902,23 +3742,39 @@ class IrRemoteCardEditor extends HTMLElement {
     this._update();
   }
 
+  static get flavour() {
+    return undefined;
+  }
+
+  get _devices() {
+    return devicesFor(this.constructor.flavour);
+  }
+
+  _resolve(config) {
+    return resolveRemote(config, this.constructor.flavour) || {};
+  }
+
+  _deviceOf(config) {
+    return deviceOf(config, this.constructor.flavour);
+  }
+
   _schema() {
-    const def = resolveRemote(this._config) || {};
+    const def = this._resolve(this._config);
     const schema = [];
     if (!this._config.custom) {
       // Buoc 1: loai thiet bi. Buoc 2 (chi voi thiet bi hong ngoai): mau remote.
-      const { device } = deviceOf(this._config);
+      const { device } = this._deviceOf(this._config);
       schema.push({
         name: "device",
         required: true,
         selector: {
           select: {
             mode: "dropdown",
-            options: Object.entries(DEVICES).map(([value, item]) => ({ value, label: tr(`device_${value}`, item.name) })),
+            options: Object.entries(this._devices).map(([value, item]) => ({ value, label: tr(`device_${value}`, item.name) })),
           },
         },
       });
-      const models = (DEVICES[device] || {}).models;
+      const models = (this._devices[device] || {}).models;
       if (models) {
         schema.push({
           name: "model",
@@ -2933,7 +3789,7 @@ class IrRemoteCardEditor extends HTMLElement {
       }
     }
     if (def.kind) {
-      schema.push({ name: "entity", label: "device_entity", required: true, selector: { entity: { domain: def.domain } } });
+      schema.push({ name: "entity", label: "device_entity", required: true, selector: { entity: { domain: def.domains || def.domain } } });
     } else {
       const blasters = findBlasters(this._hass);
       const current = this._config.blaster;
@@ -2981,6 +3837,8 @@ class IrRemoteCardEditor extends HTMLElement {
         { name: "columns", selector: { number: { min: 2, max: 6, mode: "box" } } }
       );
     }
+    // Khoa cua: mac dinh hoi lai truoc khi mo
+    if (def.kind === "smart" && def.domain === "lock") schema.push({ name: "confirm", selector: { boolean: {} } });
     schema.push({ name: "hide_quick", selector: { boolean: {} } });
     // Nut nhanh: chon tu cac chuc nang cua loai thiet bi (khong can khi da an hang nut)
     if (this._config.hide_quick) {
@@ -3010,6 +3868,8 @@ class IrRemoteCardEditor extends HTMLElement {
       const options =
         def.kind === "climate"
           ? climateModes(this._stateObj()).map((mode) => ({ value: mode, label: tr(`hvac_${mode}`, mode) }))
+          : def.kind === "smart"
+            ? smartActions(def, this._stateObj(), this._hass).map((action) => ({ value: action.id, label: action.label }))
           : def.kind
             ? quickChoices(def, this._stateObj()).map((id) => ({ value: id, label: quickLabel(id) }))
             : remoteButtons(def).map((btn) => ({ value: btn.id, label: buttonTitle(btn) }));
@@ -3027,12 +3887,13 @@ class IrRemoteCardEditor extends HTMLElement {
 
   // Du lieu dua vao form: dien san nut nhanh mac dinh de nguoi dung thay va sua duoc
   _formData() {
-    const def = resolveRemote(this._config) || {};
+    const def = this._resolve(this._config);
     const data = { ...this._config };
+    if (def.kind === "smart" && def.domain === "lock") data.confirm = this._config.confirm !== false;
     if (!this._config.custom) {
       // Hien cau hinh cu (remote: ...) duoi dang loai thiet bi + mau
-      const { device, model } = deviceOf(this._config);
-      const models = (DEVICES[device] || {}).models;
+      const { device, model } = this._deviceOf(this._config);
+      const models = (this._devices[device] || {}).models;
       data.device = device;
       if (models) data.model = model || Object.keys(models)[0];
       delete data.remote;
@@ -3079,12 +3940,20 @@ class IrRemoteCardEditor extends HTMLElement {
           else delete config.pad;
         }
         if (config.columns == null || config.columns === "") delete config.columns;
-        const before = deviceOf(this._config);
+        const before = this._deviceOf(this._config);
         const deviceChanged = config.device !== before.device;
-        const models = (DEVICES[config.device] || {}).models;
+        const models = (this._devices[config.device] || {}).models;
         if (!models) delete config.model;
         else if (deviceChanged || !models[config.model]) config.model = Object.keys(models)[0];
-        const def = resolveRemote(config) || {};
+        const def = this._resolve(config);
+        // "confirm" chi luu khi nguoi dung tat no; chi co o khoa cua
+        if (config.confirm !== false || def.domain !== "lock") delete config.confirm;
+        // Nut nhanh cua den, cua cuon, thiet bi thong minh phu thuoc entity: doi entity, hoac danh sach
+        // rong (form dien san khi chua chon entity), thi quay ve mac dinh
+        if (["light", "cover", "smart"].includes(def.kind)) {
+          const empty = Array.isArray(config.quick) && !config.quick.length;
+          if (empty || config.entity !== this._config.entity) delete config.quick;
+        }
         // Loai theo entity khong dung bo phat IR
         if (def.kind) {
           delete config.blaster;
@@ -3122,20 +3991,40 @@ class IrRemoteCardEditor extends HTMLElement {
 }
 
 // Ten cu "ir-remote-card" duoc giu lai de dashboard da cau hinh tu truoc khong bi hong
-const define = (tag, base) => {
-  if (!customElements.get(tag)) customElements.define(tag, class extends base {});
+// "flavour" chon nhom thiet bi cua card: "ir", "smart", hoac bo trong cho card cu (ca hai nhom)
+const define = (tag, base, flavour) => {
+  if (customElements.get(tag)) return;
+  customElements.define(
+    tag,
+    class extends base {
+      static get flavour() {
+        return flavour;
+      }
+    }
+  );
 };
 define("aurora-device-control-card-editor", IrRemoteCardEditor);
 define("ir-remote-card-editor", IrRemoteCardEditor);
+define(EDITOR_TAGS.ir, IrRemoteCardEditor, "ir");
+define(EDITOR_TAGS.smart, IrRemoteCardEditor, "smart");
 if (!customElements.get("aurora-device-control-card")) {
   define("aurora-device-control-card", IrRemoteCard);
   define("ir-remote-card", IrRemoteCard);
+  define("aurora-ir-remote-card", IrRemoteCard, "ir");
+  define("aurora-smart-device-card", IrRemoteCard, "smart");
   window.customCards = window.customCards || [];
-  window.customCards.push({
-    type: "aurora-device-control-card",
-    name: "Aurora Device Control Card",
-    description: "Control IR fans, speakers and TVs through ESPHome, plus Apple TV, air conditioners, lights, roller doors and curtains, robot vacuums and cameras",
-  });
+  window.customCards.push(
+    {
+      type: "aurora-ir-remote-card",
+      name: "Aurora IR Remote Card",
+      description: "One-way infrared devices sent through an ESPHome IR blaster: fans, TVs, speakers, set-top boxes, projectors",
+    },
+    {
+      type: "aurora-smart-device-card",
+      name: "Aurora Smart Device Card",
+      description: "Two-way devices controlled through their entity: air conditioners, lights, roller doors, locks, fans, sockets, media players, water heaters, vacuums, cameras and more",
+    }
+  );
   console.info(
     `%c AURORA-DEVICE-CONTROL-CARD %c v${VERSION} `,
     "background:#6AA9F0;color:#fff",
