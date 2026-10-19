@@ -22,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "2.2.1";
+const VERSION = "2.2.2";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -1864,7 +1864,8 @@ const CARD_CSS = `
     --mdc-icon-size: 24px;
   }
   ha-card.on .icon {
-    background: color-mix(in srgb, var(--ir-accent) var(--card-on-icon-background-mix, 25%), transparent);
+    /* Theme nen sang co the dat nen icon rieng (vd. xam nhat) thay vi pha mau thiet bi */
+    background: var(--card-on-icon-background-color, color-mix(in srgb, var(--ir-accent) var(--card-on-icon-background-mix, 25%), transparent));
     color: var(--card-on-icon-color, var(--ir-accent));
   }
   .name {
@@ -1992,7 +1993,7 @@ const CARD_CSS = `
   /* Card dang BAT: nut va o trang thai pha mau cua thiet bi thay vi xam.
      Mau chu = mau thiet bi tron voi mau chu cua card, nen du tuong phan tren ca nen sang lan nen toi. */
   ha-card.on .quick button, ha-card.on .badge.show-text {
-    background: color-mix(in srgb, var(--ir-accent) 16%, transparent);
+    background: var(--card-on-quick-background-color, color-mix(in srgb, var(--ir-accent) 16%, transparent));
     color: color-mix(in srgb, var(--ir-accent) 62%, var(--card-on-text-color, var(--primary-text-color)));
   }
   /* Nut chi co icon dung chung hang voi nut co chu: thu gon lai, nhuong cho cho chu */
