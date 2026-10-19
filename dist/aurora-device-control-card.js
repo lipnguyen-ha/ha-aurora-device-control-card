@@ -22,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "2.2.2";
+const VERSION = "2.2.3";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -1873,7 +1873,8 @@ const CARD_CSS = `
     min-width: 0;
     font-size: 13px;
     font-weight: 600;
-    color: var(--primary-text-color);
+    /* Theme co the cho ten card dang TAT nhat hon (card BAT dung --card-on-text-color) */
+    color: var(--card-off-text-color, var(--primary-text-color));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
