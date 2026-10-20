@@ -22,7 +22,7 @@
  * Khong can build, khong phu thuoc thu vien nao.
  */
 
-const VERSION = "2.2.3";
+const VERSION = "2.3.0";
 
 // Ma NEC 8 bit -> 16 bit theo kieu ESPHome: byte cao la dao bit cua byte thap (0x08 -> 0xF708)
 const nec = (code) => (((~code & 0xff) << 8) | code) >>> 0;
@@ -164,6 +164,14 @@ const STRINGS = {
     label_badge_entity: "Status badge, top right: entity to show (empty = default)",
     label_badge_icon: "Status badge, top right: leading icon (empty = default of the device type)",
     label_hide_quick: "Hide the quick button row (card as short as a tile)",
+    label_off_timer: "Turn-off timer (needs the Aurora off-timer script on Home Assistant)",
+    label_off_entity: "Entity to turn off when the timer ends (empty = the card's entity or its IR off key)",
+    off_timer_title: "Turn off in",
+    off_timer_idle: "Not set",
+    off_timer_status: "Off at {time} · {left} left",
+    off_timer_start: "Start",
+    off_timer_cancel: "Cancel",
+    off_timer_min: "m",
     label_quick: "Quick buttons on the card (pick one or more, drag to reorder)",
     label_quick_entities: "Quick buttons on the card",
     label_remote_entity: "Remote entity used to send commands (empty = found by name)",
@@ -318,6 +326,14 @@ const STRINGS = {
     label_badge_entity: "Ô trạng thái góc phải: entity hiển thị (để trống = mặc định)",
     label_badge_icon: "Ô trạng thái góc phải: icon đứng trước (để trống = mặc định của loại thiết bị)",
     label_hide_quick: "Ẩn hàng nút nhanh (card thấp bằng một tile)",
+    label_off_timer: "Hẹn giờ tắt (cần script hẹn giờ Aurora trên Home Assistant)",
+    label_off_entity: "Entity tắt khi hết giờ (để trống = entity của card hoặc phím tắt IR)",
+    off_timer_title: "Hẹn giờ tắt",
+    off_timer_idle: "Chưa hẹn giờ",
+    off_timer_status: "Tắt lúc {time} · còn {left}",
+    off_timer_start: "Bắt đầu",
+    off_timer_cancel: "Huỷ",
+    off_timer_min: "p",
     label_quick: "Nút nhanh trên card (chọn một hoặc nhiều, kéo để đổi thứ tự)",
     label_quick_entities: "Nút nhanh trên card",
     label_remote_entity: "Entity remote để gửi lệnh (để trống = tự tìm theo tên)",
@@ -1991,6 +2007,24 @@ const CARD_CSS = `
     white-space: nowrap;
   }
   ha-card.on .name { color: var(--card-on-text-color, var(--primary-text-color)); }
+  /* Chip dem nguoc hen gio tat, canh ten */
+  .timer-chip {
+    flex: none;
+    display: none;
+    align-items: center;
+    gap: 3px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ir-accent) 18%, transparent);
+    color: var(--primary-text-color);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    --mdc-icon-size: 14px;
+  }
+  .timer-chip.show { display: flex; }
+  ha-card.on .timer-chip { color: var(--card-on-text-color, var(--primary-text-color)); }
   /* Card dang BAT: nut va o trang thai pha mau cua thiet bi thay vi xam.
      Mau chu = mau thiet bi tron voi mau chu cua card, nen du tuong phan tren ca nen sang lan nen toi. */
   ha-card.on .quick button, ha-card.on .badge.show-text {
@@ -2396,6 +2430,107 @@ const POPUP_CSS = `
     background: color-mix(in srgb, var(--ir-accent) 24%, transparent);
     border-color: color-mix(in srgb, var(--ir-accent) 70%, transparent);
   }
+  /* Muc hen gio tat: mot khung rieng o cuoi pop-up */
+  .timer-panel {
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid rgba(127, 127, 127, 0.18);
+    border-radius: 20px;
+    background: rgba(127, 127, 127, 0.08);
+  }
+  .timer-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    margin: 0 2px 10px;
+    color: var(--primary-text-color);
+    --mdc-icon-size: 18px;
+  }
+  .timer-head .title { flex: 1; font-size: 14px; font-weight: 600; }
+  .timer-head .status {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--secondary-text-color);
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-head .status.active {
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ir-accent) 22%, transparent);
+    color: var(--primary-text-color);
+  }
+  .timer-presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .timer-panel button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    padding: 0;
+    background: rgba(127, 127, 127, 0.16);
+    color: var(--primary-text-color);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s;
+  }
+  .timer-panel button:active { transform: scale(0.96); }
+  .timer-presets button { height: 40px; border-radius: 14px; }
+  .timer-presets button.selected {
+    border-color: color-mix(in srgb, var(--ir-accent) 70%, transparent);
+    background: color-mix(in srgb, var(--ir-accent) 24%, transparent);
+  }
+  .timer-row { display: flex; gap: 8px; }
+  .timer-row .stepper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    height: 48px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 24px;
+    background: rgba(127, 127, 127, 0.16);
+    overflow: hidden;
+  }
+  .timer-row .stepper button {
+    flex: none;
+    width: 52px;
+    height: 100%;
+    border: none;
+    background: none;
+    --mdc-icon-size: 20px;
+  }
+  .timer-row .timer-value {
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary-text-color);
+  }
+  .timer-row > button {
+    flex: none;
+    height: 48px;
+    padding: 0 20px;
+    border-radius: 24px;
+  }
+  .timer-row > button.start {
+    border-color: transparent;
+    background: var(--ir-accent);
+    color: #fff;
+  }
+  .timer-row > button.cancel {
+    border-color: rgba(239, 138, 128, 0.45);
+    background: rgba(239, 138, 128, 0.14);
+    color: #ef8a80;
+  }
+  .timer-row > button[hidden] { display: none; }
   .offline-box {
     height: 180px;
     margin-bottom: 8px;
@@ -2470,6 +2605,27 @@ function el(tag, props = {}, children = []) {
 function icon(name) {
   return el("ha-icon", { icon: name });
 }
+
+// Hen gio tat: 90 -> "1h30", 30 -> "30p" (nut chon nhanh va o chinh tuy y)
+function formatTimerMinutes(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (!h) return `${m}${tr("off_timer_min")}`;
+  return m ? `${h}h${String(m).padStart(2, "0")}` : `${h}h`;
+}
+
+// Thoi gian con lai dang gio:phut, lam tron len de "0:00" chi hien khi that su het gio
+function formatTimerLeft(ms) {
+  const total = Math.ceil(ms / 60000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+const OFF_TIMER_PRESETS = [15, 30, 60, 90, 120, 180];
+// Kho hen gio tat chung tren HA: script ghi, sensor giu danh sach, automation tat khi het gio (xem README)
+const OFF_TIMER_SCRIPT = "aurora_off_timer";
+const OFF_TIMER_STORE = "sensor.aurora_off_timers";
+// Phim IR tat rieng (khong phai bat/tat luan phien): chi nhung bo ma co phim nay moi hen gio tat duoc
+const IR_OFF_IDS = ["off", "all_off", "power_off"];
 
 // Ten cac node ESPHome co action esphome.<ten>_send_<giao thuc>
 function findBlasters(hass) {
@@ -2745,6 +2901,7 @@ class IrRemoteCard extends HTMLElement {
     this._updateKeyboard();
     this._updateNowPlaying();
     this._updateSliders();
+    this._updateOffTimer();
     for (const card of this._embedded) {
       card.hass = hass;
       if (card.localName === "ha-camera-stream") card.stateObj = this._stateObj;
@@ -2761,6 +2918,144 @@ class IrRemoteCard extends HTMLElement {
 
   disconnectedCallback() {
     this._closePopup(true);
+    this._stopTimerTick();
+  }
+
+  // ---- Hen gio tat (off_timer: mot timer helper; automation phia HA tat thiet bi khi het gio) ----
+
+  // Ma cua card trong kho hen gio: entity, hoac bo phat + loai + mau voi thiet bi chi co IR.
+  // Hai card cung mot thiet bi dung chung ma nen cung hien mot hen gio.
+  get _offKey() {
+    const c = this._config;
+    return c.entity || `${c.blaster}/${c.device || c.remote || ""}/${c.model || ""}`;
+  }
+
+  // Phim IR tat rieng cua bo ma, null neu chi co phim nguon bat/tat luan phien
+  get _irOffButton() {
+    for (const id of IR_OFF_IDS) if (this._byId[id]) return this._byId[id];
+    return null;
+  }
+
+  // Lenh HA chay khi het gio, null neu thiet bi khong tat an toan duoc (chi co phim nguon luan phien).
+  get _offAction() {
+    const c = this._config;
+    const entity = c.off_entity || (this._def.kind && c.entity);
+    if (entity) return { action: "homeassistant.turn_off", target: { entity_id: entity } };
+    const btn = !this._def.kind && this._def.transport !== "remote" && c.blaster ? this._irOffButton : null;
+    if (!btn) return null;
+    const call = this._irCall(btn, false);
+    return call ? { action: `esphome.${call.service}`, data: call.data } : null;
+  }
+
+  get _offTimerEnabled() {
+    return !!this._config.off_timer && !this._missing && !!this._offAction;
+  }
+
+  // Muc hen gio cua card nay trong kho, undefined khi khong hen gio
+  get _offEntry() {
+    const store = this._hass && this._hass.states[OFF_TIMER_STORE];
+    const timers = store && store.attributes.timers;
+    return timers && typeof timers === "object" ? timers[this._offKey] : undefined;
+  }
+
+  // So mili giay con lai khi dang hen gio, null khi khong
+  _offTimerLeft() {
+    const entry = this._offEntry;
+    if (!this._offTimerEnabled || !entry || !entry.finishes_at) return null;
+    return Math.max(0, new Date(entry.finishes_at).getTime() - Date.now());
+  }
+
+  _updateOffTimer() {
+    if (!this._timerChip) return;
+    const left = this._offTimerLeft();
+    const active = left !== null;
+    this._timerChip.classList.toggle("show", active);
+    if (active) this._timerChip.querySelector("span").textContent = formatTimerLeft(left);
+    if (this._timerNodes) {
+      const { status, cancel } = this._timerNodes;
+      status.classList.toggle("active", active);
+      if (active) {
+        const end = new Date(this._offEntry.finishes_at);
+        const time = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+        status.textContent = tr("off_timer_status").replace("{time}", time).replace("{left}", formatTimerLeft(left));
+      } else {
+        status.textContent = tr("off_timer_idle");
+      }
+      cancel.hidden = !active;
+    }
+    // Cap nhat so phut con lai ca khi HA khong gui trang thai moi
+    if (active && !this._timerTick) this._timerTick = setInterval(() => this._updateOffTimer(), 30000);
+    if (!active) this._stopTimerTick();
+  }
+
+  _stopTimerTick() {
+    if (this._timerTick) clearInterval(this._timerTick);
+    this._timerTick = null;
+  }
+
+  _callOffTimer(minutes) {
+    this._hass
+      .callService("script", OFF_TIMER_SCRIPT, { key: this._offKey, minutes, name: this._name, action: this._offAction || {} })
+      .catch((err) => this._notifyError(err));
+  }
+
+  _startOffTimer(minutes) {
+    this._callOffTimer(minutes);
+  }
+
+  _cancelOffTimer() {
+    this._callOffTimer(0);
+  }
+
+  // Muc "Hen gio tat" o cuoi pop-up: nut chon nhanh, o chinh tung 15 phut, nut Huy
+  _buildOffTimer() {
+    const status = el("span", { class: "status" });
+    const head = el("div", { class: "timer-head" }, [
+      icon("mdi:timer-outline"),
+      el("span", { class: "title", text: tr("off_timer_title") }),
+      status,
+    ]);
+
+    if (!this._timerMinutes) this._timerMinutes = 90;
+    const value = el("span", { class: "timer-value" });
+    const presetNodes = [];
+    // Nut chon nhanh trung voi thoi gian dang chon thi sang len
+    const paint = () => {
+      value.textContent = formatTimerMinutes(this._timerMinutes);
+      presetNodes.forEach(([minutes, node]) => node.classList.toggle("selected", minutes === this._timerMinutes));
+    };
+
+    const presets = el("div", { class: "timer-presets" });
+    for (const minutes of OFF_TIMER_PRESETS) {
+      const node = el("button", { text: formatTimerMinutes(minutes) });
+      node.addEventListener("click", () => {
+        this._timerMinutes = minutes;
+        paint();
+        this._startOffTimer(minutes);
+      });
+      presetNodes.push([minutes, node]);
+      presets.appendChild(node);
+    }
+
+    const minus = el("button", {}, [icon("mdi:minus")]);
+    minus.addEventListener("click", () => {
+      this._timerMinutes = Math.max(15, this._timerMinutes - 15);
+      paint();
+    });
+    const plus = el("button", {}, [icon("mdi:plus")]);
+    plus.addEventListener("click", () => {
+      this._timerMinutes = Math.min(720, this._timerMinutes + 15);
+      paint();
+    });
+    const start = el("button", { class: "start", text: tr("off_timer_start") });
+    start.addEventListener("click", () => this._startOffTimer(this._timerMinutes));
+    const cancel = el("button", { class: "cancel", text: tr("off_timer_cancel") });
+    cancel.addEventListener("click", () => this._cancelOffTimer());
+    paint();
+
+    this._timerNodes = { status, cancel };
+    const row = el("div", { class: "timer-row" }, [el("div", { class: "stepper" }, [minus, value, plus]), start, cancel]);
+    return [el("div", { class: "timer-panel" }, [head, presets, row])];
   }
 
   get _isClimate() {
@@ -2828,7 +3123,8 @@ class IrRemoteCard extends HTMLElement {
       el("ha-icon", { class: "extra" }),
       el("span", { class: "text" }),
     ]);
-    const top = el("div", { class: "top" }, [iconButton, this._nameEl, this._badge]);
+    this._timerChip = el("div", { class: "timer-chip" }, [icon("mdi:timer-outline"), el("span")]);
+    const top = el("div", { class: "top" }, [iconButton, this._nameEl, this._timerChip, this._badge]);
     top.addEventListener("click", () => this._openMain());
 
     this._quick = el("div", { class: "quick" });
@@ -3604,22 +3900,13 @@ class IrRemoteCard extends HTMLElement {
         .catch((err) => this._notifyError(err));
       return;
     }
-    // Ma lay tu kho: doi thanh Pronto luc bam; bit lat cua RC5 / RC6 doi sau moi lan bam
-    let prontoCode = btn.pronto;
-    if (btn.ir) {
-      this._irToggle = !this._irToggle;
-      prontoCode = irPronto(btn.ir, this._irToggle);
-      if (!prontoCode) return this._notifyError(tr("ir_unsupported"));
-    }
-    const protocol = prontoCode ? "pronto" : btn.protocol || def.protocol;
-    // Chuoi Pronto dung san, giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
-    const data = prontoCode
-      ? { data: prontoCode }
-      : btn.data !== undefined
-        ? { data: btn.data, nbits: btn.nbits ?? def.nbits }
-        : { address: btn.address ?? def.address, command: btn.command };
-    const repeats = btn.repeats ?? def.repeats;
-    if (repeats !== undefined && !prontoCode) data.repeats = repeats;
+    // Ma lay tu kho: bit lat cua RC5 / RC6 doi sau moi lan bam
+    if (btn.ir) this._irToggle = !this._irToggle;
+    const ir = this._irCall(btn, this._irToggle);
+    if (!ir) return this._notifyError(tr("ir_unsupported"));
+    const { service, data } = ir;
+    // Bam phim tat rieng tren card thi huy hen gio tat cua card
+    if (btn === this._irOffButton && this._offTimerLeft() !== null) this._cancelOffTimer();
 
     this.dispatchEvent(new CustomEvent("haptic", { bubbles: true, composed: true, detail: "light" }));
     // Cac lenh IR phai cach nhau mot khoang lang. Gui lien nhau thi thiet bi coi nhu dang giu mot phim
@@ -3630,10 +3917,30 @@ class IrRemoteCard extends HTMLElement {
     const at = Math.max(now, this._irNextAt || 0);
     if (at - now > gap * 8) return; // hang cho qua dai (keo qua nhanh): bo bot de khong chay mai sau khi dung tay
     this._irNextAt = at + gap;
-    const service = `${this._config.blaster}_send_${protocol}`;
     const call = () => this._hass.callService("esphome", service, data).catch((err) => this._notifyError(err));
     if (at === now) call();
     else setTimeout(call, at - now);
+  }
+
+  // Action ESPHome va du lieu de gui mot phim IR: { service, data }, null neu ma khong doi duoc
+  _irCall(btn, toggle) {
+    const def = this._def;
+    // Ma lay tu kho: doi thanh Pronto luc gui
+    let prontoCode = btn.pronto;
+    if (btn.ir) {
+      prontoCode = irPronto(btn.ir, toggle);
+      if (!prontoCode) return null;
+    }
+    const protocol = prontoCode ? "pronto" : btn.protocol || def.protocol;
+    // Chuoi Pronto dung san, giao thuc kieu data/nbits (sony, lg...) hoac address/command (nec, samsung)
+    const data = prontoCode
+      ? { data: prontoCode }
+      : btn.data !== undefined
+        ? { data: btn.data, nbits: btn.nbits ?? def.nbits }
+        : { address: btn.address ?? def.address, command: btn.command };
+    const repeats = btn.repeats ?? def.repeats;
+    if (repeats !== undefined && !prontoCode) data.repeats = repeats;
+    return { service: `${this._config.blaster}_send_${protocol}`, data };
   }
 
   _buildGrid(group) {
@@ -4058,6 +4365,7 @@ class IrRemoteCard extends HTMLElement {
           ? this._buildPadBody()
           : this._groups.map((group) => this._buildGrid(group));
     if ((this._config.apps || []).length) body.push(this._buildApps());
+    if (this._offTimerEnabled) body.push(...this._buildOffTimer());
     this._updateControls();
     this._updateSliders();
     const sheet = el("div", { class: "sheet" }, [
@@ -4071,6 +4379,7 @@ class IrRemoteCard extends HTMLElement {
     ]);
 
     root.append(el("style", { text: POPUP_CSS }), backdrop, sheet);
+    this._updateOffTimer();
     this._bindSheetGestures(host, sheet);
     // Gan vao trong <home-assistant> chu khong phai document.body: cac card goc cua HA
     // (vd. thermostat) lay hass qua context cua phan tu nay, o ngoai thi chung hien trong.
@@ -4173,6 +4482,7 @@ class IrRemoteCard extends HTMLElement {
     this._chipNodes = [];
     this._keyboard = null;
     this._nowPlaying = null;
+    this._timerNodes = null;
     this._childDialog = false;
     document.documentElement.style.overflow = this._prevOverflow || "";
     window.removeEventListener("popstate", this._onPopState);
@@ -4325,6 +4635,8 @@ class IrRemoteCardEditor extends HTMLElement {
     }
     // Khoa cua: mac dinh hoi lai truoc khi mo
     if (def.kind === "smart" && def.domain === "lock") schema.push({ name: "confirm", selector: { boolean: {} } });
+    schema.push({ name: "off_timer", selector: { boolean: {} } });
+    if (this._config.off_timer) schema.push({ name: "off_entity", selector: { entity: {} } });
     schema.push({ name: "hide_quick", selector: { boolean: {} } });
     // Nut nhanh: chon tu cac chuc nang cua loai thiet bi (khong can khi da an hang nut)
     if (this._config.hide_quick) {

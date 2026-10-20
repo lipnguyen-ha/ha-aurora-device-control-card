@@ -6,6 +6,14 @@ Card Lovelace cho Home Assistant, điều khiển nhiều loại thiết bị th
 
 Mỗi thiết bị chỉ cần vài dòng cấu hình. Card tự vẽ nút ngoài dashboard, pop-up điều khiển đầy đủ, và tự báo khi thiết bị hoặc bộ phát IR mất kết nối.
 
+## Ảnh chụp
+
+<img src="https://raw.githubusercontent.com/lipnguyen-ha/ha-aurora-device-control-card/main/screenshots/01-ir-devices.png" width="400" alt="Card TV, điều hoà, quạt và loa hồng ngoại cùng hàng nút nhanh"> <img src="https://raw.githubusercontent.com/lipnguyen-ha/ha-aurora-device-control-card/main/screenshots/02-smart-devices.png" width="400" alt="Card robot hút bụi, quạt hồng ngoại và camera">
+
+Thiết bị hồng ngoại (TV, quạt, loa), điều hoà, robot hút bụi và camera, trên theme Aurora Home Things Dark. Khi thiết bị đang bật, card theo màu "bật" của theme:
+
+<img src="https://raw.githubusercontent.com/lipnguyen-ha/ha-aurora-device-control-card/main/screenshots/03-on-light-theme.png" width="600" alt="Card TV và điều hoà đang bật, nền trắng">
+
 File này đăng ký **hai card**, bạn chọn đúng card trong danh sách thêm card:
 
 | Card | Dùng cho | Ví dụ |
@@ -151,6 +159,8 @@ Cũng có thể viết YAML với các tùy chọn sau:
 | `ir_gap` | Không | Khoảng cách tối thiểu giữa hai lệnh hồng ngoại liên tiếp, tính bằng mili giây, mặc định 220. Tăng lên nếu kéo trên vòng điều hướng mà thiết bị bỏ sót bước, giảm xuống nếu thiết bị nhận tốt và bạn muốn nhanh hơn |
 | `availability_entity` | Không | Entity dùng để biết bộ phát IR còn kết nối. Mặc định card tự theo dõi mọi entity có tên chứa `<blaster>_` |
 | `custom` | Không | Bộ mã hồng ngoại tự khai báo, thay cho `device` và `model` (xem bên dưới) |
+| `off_timer` | Không | `true` để thêm mục **Hẹn giờ tắt** vào pop-up (xem [Hẹn giờ tắt](#hẹn-giờ-tắt)) |
+| `off_entity` | Không | Entity tắt khi hết giờ, thay cho entity của card hoặc phím tắt hồng ngoại |
 
 ## Cách dùng
 
@@ -158,6 +168,104 @@ Cũng có thể viết YAML với các tùy chọn sau:
 - Bấm **các nút hàng dưới**: các lệnh hay dùng.
 - Bấm **phần còn lại** của card: mở pop-up điều khiển đầy đủ. Vuốt xuống để đóng.
 - Khi bộ phát IR hoặc thiết bị mất kết nối, card mờ đi và hiện "Unavailable".
+
+### Hẹn giờ tắt
+
+Đặt `off_timer: true`, cuối pop-up sẽ có mục **Hẹn giờ tắt**:
+
+- Các nút **15p · 30p · 1h · 1h30 · 2h · 3h** bắt đầu ngay. Bấm nút khác thì hẹn lại.
+- **− / +** chọn thời gian tuỳ ý, mỗi bước 15 phút, rồi bấm **Bắt đầu**. Khi đang hẹn giờ, mục này hiện giờ tắt và nút **Huỷ**; card hiện chip `⏱ 1:29`.
+
+Thứ được tắt khi hết giờ:
+
+- Card có entity (điều hoà, đèn, TV...): entity đó, bằng `homeassistant.turn_off`. Đã tắt sẵn thì bỏ qua.
+- Card hồng ngoại: phím **tắt riêng** của bộ mã (ví dụ `ALL OFF` của quạt HSV). Remote chỉ có một phím nguồn bật/tắt luân phiên thì không có hẹn giờ, vì gửi phím đó có thể làm thiết bị bật lên. Muốn dùng thì trỏ `off_entity` tới một switch biết trạng thái thật.
+- Có `off_entity` thì luôn dùng `off_entity`.
+
+Việc đếm giờ chạy trên Home Assistant, không phải trong trình duyệt, nên đóng app vẫn tắt đúng giờ. Mọi card dùng chung một kho, nên card mới chỉ cần `off_timer: true`. Thêm ba phần sau vào Home Assistant một lần:
+
+```yaml
+# configuration.yaml: the store (keeps every pending timer, survives a restart)
+template:
+  - triggers:
+      - trigger: event
+        event_type: aurora_off_timer
+    sensor:
+      - name: "Aurora off timers"
+        unique_id: aurora_off_timers
+        device_class: timestamp
+        state: >
+          {% set old = this.attributes.timers if this.attributes.timers is defined and this.attributes.timers is mapping else {} %}
+          {% set d = trigger.event.data %}
+          {% set ns = namespace(ends=[]) %}
+          {% for k, v in old.items() if k != d.key %}{% set ns.ends = ns.ends + [v.finishes_at] %}{% endfor %}
+          {% if (d.minutes | int(0)) > 0 %}{% set ns.ends = ns.ends + [(now() + timedelta(minutes=d.minutes | int)).isoformat()] %}{% endif %}
+          {{ (ns.ends | min) if ns.ends else none }}
+        attributes:
+          timers: >
+            {% set old = this.attributes.timers if this.attributes.timers is defined and this.attributes.timers is mapping else {} %}
+            {% set d = trigger.event.data %}
+            {% set ns = namespace(items=[]) %}
+            {% for k, v in old.items() if k != d.key %}{% set ns.items = ns.items + [(k, v)] %}{% endfor %}
+            {% if (d.minutes | int(0)) > 0 %}
+              {% set ns.items = ns.items + [(d.key, {'finishes_at': (now() + timedelta(minutes=d.minutes | int)).isoformat(), 'name': d.name | default(d.key), 'action': d.action})] %}
+            {% endif %}
+            {{ dict(ns.items) }}
+
+# scripts.yaml: what the card calls
+aurora_off_timer:
+  alias: "Aurora: off timer"
+  mode: queued
+  fields:
+    key: { required: true, selector: { text: {} } }
+    minutes: { required: true, selector: { number: { min: 0, max: 720 } } }
+    name: { selector: { text: {} } }
+    action: { selector: { object: {} } }
+  sequence:
+    - event: aurora_off_timer
+      event_data:
+        key: "{{ key }}"
+        minutes: "{{ minutes | int(0) }}"
+        name: "{{ name | default(key) }}"
+        action: "{{ action | default({}) }}"
+
+# automations.yaml: runs a timer when it ends, and catches up after a restart
+- alias: "Aurora: run off timers"
+  mode: queued
+  triggers:
+    - trigger: time
+      at: sensor.aurora_off_timers
+      id: due
+    - trigger: homeassistant
+      event: start
+      id: start
+  actions:
+    - if: [{ condition: trigger, id: start }]
+      then: [{ delay: "00:01:00" }]
+    - variables:
+        due: >
+          {% set t = state_attr('sensor.aurora_off_timers', 'timers') %}
+          {% set ns = namespace(l=[]) %}
+          {% if t is mapping %}{% for k, v in t.items() if as_datetime(v.finishes_at) <= now() + timedelta(seconds=5) %}{% set ns.l = ns.l + [{'key': k, 'action': v.action}] %}{% endfor %}{% endif %}
+          {{ ns.l }}
+    - repeat:
+        for_each: "{{ due }}"
+        sequence:
+          - variables:
+              cmd: "{{ repeat.item.action if repeat.item.action is mapping else {} }}"
+              allowed: "{{ (cmd.action | default('')) | regex_match('^(homeassistant\\.turn_off|esphome\\.[a-z0-9_]+_send_[a-z0-9]+)$') }}"
+              already_off: "{{ cmd.target is defined and cmd.target.entity_id is defined and is_state(cmd.target.entity_id, 'off') }}"
+          - if: "{{ allowed and not already_off }}"
+            then:
+              - action: "{{ cmd.action }}"
+                target: "{{ cmd.target | default({}) }}"
+                data: "{{ cmd.data | default({}) }}"
+                continue_on_error: true
+          - event: aurora_off_timer
+            event_data: { key: "{{ repeat.item.key }}", minutes: 0 }
+```
+
+Bấm phím tắt trên card thì hẹn giờ của card đó bị huỷ.
 
 ### Thiết bị hồng ngoại
 

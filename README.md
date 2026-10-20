@@ -6,6 +6,14 @@ A Lovelace card for Home Assistant that controls many kinds of devices with one 
 
 Each device needs only a few lines of configuration. The card draws the buttons on the dashboard and the full control pop-up by itself, and tells you when the device or the IR blaster loses its connection.
 
+## Screenshots
+
+<img src="https://raw.githubusercontent.com/lipnguyen-ha/ha-aurora-device-control-card/main/screenshots/01-ir-devices.png" width="400" alt="Infrared TV, air conditioner, fan and soundbar cards with quick buttons"> <img src="https://raw.githubusercontent.com/lipnguyen-ha/ha-aurora-device-control-card/main/screenshots/02-smart-devices.png" width="400" alt="Robot vacuum, infrared fan and camera cards">
+
+Infrared devices (TV, fan, soundbar), an air conditioner, a robot vacuum and a camera, on the Aurora Home Things Dark theme. When a device is on, the card follows the theme's "on" colors:
+
+<img src="https://raw.githubusercontent.com/lipnguyen-ha/ha-aurora-device-control-card/main/screenshots/03-on-light-theme.png" width="600" alt="TV and air conditioner cards that are on, with a white background">
+
 This one file registers **two cards**, so you pick the right one in the card picker:
 
 | Card | For | Example |
@@ -151,6 +159,8 @@ You can also write YAML with the following options:
 | `ir_gap` | No | Minimum gap between two consecutive infrared commands, in milliseconds, default 220. Increase it if the device skips steps when you drag on the navigation ring; decrease it if the device receives well and you want it faster |
 | `availability_entity` | No | Entity used to know whether the IR blaster is still connected. By default the card watches every entity whose name contains `<blaster>_` |
 | `custom` | No | A self-declared infrared code set, used instead of `device` and `model` (see below) |
+| `off_timer` | No | `true` adds a **Turn off in** section to the pop-up (see [Turn-off timer](#turn-off-timer)) |
+| `off_entity` | No | Entity turned off when the timer ends, instead of the card's entity or its infrared off key |
 
 ## Usage
 
@@ -158,6 +168,104 @@ You can also write YAML with the following options:
 - Tap the **bottom-row buttons**: the commands you use most.
 - Tap the **rest** of the card: opens the full control pop-up. Swipe down to close it.
 - When the IR blaster or the device loses its connection, the card dims and shows "Unavailable".
+
+### Turn-off timer
+
+Set `off_timer: true` and the pop-up ends with a **Turn off in** section:
+
+- Quick buttons **15m · 30m · 1h · 1h30 · 2h · 3h** start the timer at once. Pressing another one restarts it.
+- **− / +** pick any time in 15-minute steps, then **Start**. While it runs, the section shows when the device will turn off and a **Cancel** button, and the card shows a `⏱ 1:29` chip.
+
+What turns off when the time is up:
+
+- A card with an entity (air conditioner, light, TV...): that entity, with `homeassistant.turn_off`. It is skipped if it is already off.
+- An infrared card: the code set's own **off** key (for example `ALL OFF` of the HSV fan). Remotes that only have one power key that toggles on and off get no timer, because sending it could turn the device on. Point `off_entity` at a switch that knows the real state to use one anyway.
+- `off_entity`, when set, always wins.
+
+The countdown runs on Home Assistant, not in the browser, so it keeps going when the app is closed. Every card shares one store, so a new card needs nothing more than `off_timer: true`. Add these three pieces to Home Assistant once:
+
+```yaml
+# configuration.yaml: the store (keeps every pending timer, survives a restart)
+template:
+  - triggers:
+      - trigger: event
+        event_type: aurora_off_timer
+    sensor:
+      - name: "Aurora off timers"
+        unique_id: aurora_off_timers
+        device_class: timestamp
+        state: >
+          {% set old = this.attributes.timers if this.attributes.timers is defined and this.attributes.timers is mapping else {} %}
+          {% set d = trigger.event.data %}
+          {% set ns = namespace(ends=[]) %}
+          {% for k, v in old.items() if k != d.key %}{% set ns.ends = ns.ends + [v.finishes_at] %}{% endfor %}
+          {% if (d.minutes | int(0)) > 0 %}{% set ns.ends = ns.ends + [(now() + timedelta(minutes=d.minutes | int)).isoformat()] %}{% endif %}
+          {{ (ns.ends | min) if ns.ends else none }}
+        attributes:
+          timers: >
+            {% set old = this.attributes.timers if this.attributes.timers is defined and this.attributes.timers is mapping else {} %}
+            {% set d = trigger.event.data %}
+            {% set ns = namespace(items=[]) %}
+            {% for k, v in old.items() if k != d.key %}{% set ns.items = ns.items + [(k, v)] %}{% endfor %}
+            {% if (d.minutes | int(0)) > 0 %}
+              {% set ns.items = ns.items + [(d.key, {'finishes_at': (now() + timedelta(minutes=d.minutes | int)).isoformat(), 'name': d.name | default(d.key), 'action': d.action})] %}
+            {% endif %}
+            {{ dict(ns.items) }}
+
+# scripts.yaml: what the card calls
+aurora_off_timer:
+  alias: "Aurora: off timer"
+  mode: queued
+  fields:
+    key: { required: true, selector: { text: {} } }
+    minutes: { required: true, selector: { number: { min: 0, max: 720 } } }
+    name: { selector: { text: {} } }
+    action: { selector: { object: {} } }
+  sequence:
+    - event: aurora_off_timer
+      event_data:
+        key: "{{ key }}"
+        minutes: "{{ minutes | int(0) }}"
+        name: "{{ name | default(key) }}"
+        action: "{{ action | default({}) }}"
+
+# automations.yaml: runs a timer when it ends, and catches up after a restart
+- alias: "Aurora: run off timers"
+  mode: queued
+  triggers:
+    - trigger: time
+      at: sensor.aurora_off_timers
+      id: due
+    - trigger: homeassistant
+      event: start
+      id: start
+  actions:
+    - if: [{ condition: trigger, id: start }]
+      then: [{ delay: "00:01:00" }]
+    - variables:
+        due: >
+          {% set t = state_attr('sensor.aurora_off_timers', 'timers') %}
+          {% set ns = namespace(l=[]) %}
+          {% if t is mapping %}{% for k, v in t.items() if as_datetime(v.finishes_at) <= now() + timedelta(seconds=5) %}{% set ns.l = ns.l + [{'key': k, 'action': v.action}] %}{% endfor %}{% endif %}
+          {{ ns.l }}
+    - repeat:
+        for_each: "{{ due }}"
+        sequence:
+          - variables:
+              cmd: "{{ repeat.item.action if repeat.item.action is mapping else {} }}"
+              allowed: "{{ (cmd.action | default('')) | regex_match('^(homeassistant\\.turn_off|esphome\\.[a-z0-9_]+_send_[a-z0-9]+)$') }}"
+              already_off: "{{ cmd.target is defined and cmd.target.entity_id is defined and is_state(cmd.target.entity_id, 'off') }}"
+          - if: "{{ allowed and not already_off }}"
+            then:
+              - action: "{{ cmd.action }}"
+                target: "{{ cmd.target | default({}) }}"
+                data: "{{ cmd.data | default({}) }}"
+                continue_on_error: true
+          - event: aurora_off_timer
+            event_data: { key: "{{ repeat.item.key }}", minutes: 0 }
+```
+
+Pressing the off key on the card cancels its timer.
 
 ### Infrared devices
 
